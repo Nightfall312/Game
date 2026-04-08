@@ -119,6 +119,64 @@ NavMeshSettings:
     debug:
       m_Flags: 0
   m_NavMeshData: {fileID: 0}
+--- !u!1 &9446578 stripped
+GameObject:
+  m_CorrespondingSourceObject: {fileID: 499166073464393770, guid: bb129c6f94eda284ba6d66a206f3396a, type: 3}
+  m_PrefabInstance: {fileID: 1017539978}
+  m_PrefabAsset: {fileID: 0}
+--- !u!114 &9446579 stripped
+MonoBehaviour:
+  m_CorrespondingSourceObject: {fileID: 4049663247271412612, guid: bb129c6f94eda284ba6d66a206f3396a, type: 3}
+  m_PrefabInstance: {fileID: 1017539978}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 9446578}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 16819fb48d860aa459a673858957e254, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::NetworkRigidbody3D
+--- !u!153 &9446583 stripped
+ConfigurableJoint:
+  m_CorrespondingSourceObject: {fileID: 6233886172571411313, guid: bb129c6f94eda284ba6d66a206f3396a, type: 3}
+  m_PrefabInstance: {fileID: 1017539978}
+  m_PrefabAsset: {fileID: 0}
+--- !u!135 &9446584 stripped
+SphereCollider:
+  m_CorrespondingSourceObject: {fileID: 506384405782805959, guid: bb129c6f94eda284ba6d66a206f3396a, type: 3}
+  m_PrefabInstance: {fileID: 1017539978}
+  m_PrefabAsset: {fileID: 0}
+--- !u!54 &9446585 stripped
+Rigidbody:
+  m_CorrespondingSourceObject: {fileID: 7661691663174550105, guid: bb129c6f94eda284ba6d66a206f3396a, type: 3}
+  m_PrefabInstance: {fileID: 1017539978}
+  m_PrefabAsset: {fileID: 0}
+--- !u!114 &9446587
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 9446578}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f7fd44ab56274c546a914a5122cff048, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::DrunkNetworkPlayer
+  rigidbody3D: {fileID: 9446585}
+  networkRigidbody3D: {fileID: 9446579}
+  mainJoint: {fileID: 9446583}
+  thirdPersonCamera: {fileID: 330585548}
+  bodyCollider: {fileID: 9446584}
+  animator: {fileID: 264962367}
+  leftHandGrabber: {fileID: 0}
+  rightHandGrabber: {fileID: 0}
+  leftArmController: {fileID: 0}
+  rightArmController: {fileID: 0}
+--- !u!95 &264962367 stripped
+Animator:
+  m_CorrespondingSourceObject: {fileID: 7232819787063459054, guid: bb129c6f94eda284ba6d66a206f3396a, type: 3}
+  m_PrefabInstance: {fileID: 1017539978}
+  m_PrefabAsset: {fileID: 0}
 --- !u!1 &330585543
 GameObject:
   m_ObjectHideFlags: 0
@@ -616,6 +674,229 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!1001 &1017539978
+PrefabInstance:
+  m_ObjectHideFlags: 0
+  serializedVersion: 2
+  m_Modification:
+    serializedVersion: 3
+    m_TransformParent: {fileID: 0}
+    m_Modifications:
+    - target: {fileID: 123835700560922636, guid: bb129c6f94eda284ba6d66a206f3396a, type: 3}
+      propertyPath: m_SlerpDrive.positionSpring
+      value: 3
+      objectReference: {fileID: 0}
+    - target: {fileID: 499166073464393770, guid: bb129c6f94eda284ba6d66a206f3396a, type: 3}
+      propertyPath: m_Name
+      value: Network Drunk Character prefab
+      objectReference: {fileID: 0}
+    - target: {fileID: 499166073464393770, guid: bb129c6f94eda284ba6d66a206f3396a, type: 3}
+      propertyPath: m_IsActive
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 831954184173556811, guid: bb129c6f94eda284ba6d66a206f3396a, type: 3}
+      propertyPath: SortKey
+      value: 4248072377
+      objectReference: {fileID: 0}
+    - target: {fileID: 831954184173556811, guid: bb129c6f94eda284ba6d66a206f3396a, type: 3}
+      propertyPath: NetworkedBehaviours.Array.size
+      value: 4
+      objectReference: {fileID: 0}
+    - target: {fileID: 831954184173556811, guid: bb129c6f94eda284ba6d66a206f3396a, type: 3}
+      propertyPath: 'NetworkedBehaviours.Array.data[0]'
+      value: 
+      objectReference: {fileID: 9446579}
+    - target: {fileID: 831954184173556811, guid: bb129c6f94eda284ba6d66a206f3396a, type: 3}
+      propertyPath: 'NetworkedBehaviours.Array.data[1]'
+      value: 
+      objectReference: {fileID: 1017539979}
+    - target: {fileID: 831954184173556811, guid: bb129c6f94eda284ba6d66a206f3396a, type: 3}
+      propertyPath: 'NetworkedBehaviours.Array.data[2]'
+      value: 
+      objectReference: {fileID: 1017539980}
+    - target: {fileID: 831954184173556811, guid: bb129c6f94eda284ba6d66a206f3396a, type: 3}
+      propertyPath: 'NetworkedBehaviours.Array.data[3]'
+      value: 
+      objectReference: {fileID: 9446587}
+    - target: {fileID: 1262574217236990836, guid: bb129c6f94eda284ba6d66a206f3396a, type: 3}
+      propertyPath: m_SlerpDrive.positionSpring
+      value: 10
+      objectReference: {fileID: 0}
+    - target: {fileID: 2212636811164050227, guid: bb129c6f94eda284ba6d66a206f3396a, type: 3}
+      propertyPath: m_SlerpDrive.positionSpring
+      value: 15
+      objectReference: {fileID: 0}
+    - target: {fileID: 2265650511462718716, guid: bb129c6f94eda284ba6d66a206f3396a, type: 3}
+      propertyPath: m_AngularDamping
+      value: 0.01
+      objectReference: {fileID: 0}
+    - target: {fileID: 2478756589938144570, guid: bb129c6f94eda284ba6d66a206f3396a, type: 3}
+      propertyPath: m_AngularDamping
+      value: 0.01
+      objectReference: {fileID: 0}
+    - target: {fileID: 2489230919498927441, guid: bb129c6f94eda284ba6d66a206f3396a, type: 3}
+      propertyPath: m_AngularDamping
+      value: 0.01
+      objectReference: {fileID: 0}
+    - target: {fileID: 2985837566165524593, guid: bb129c6f94eda284ba6d66a206f3396a, type: 3}
+      propertyPath: thirdPersonCamera
+      value: 
+      objectReference: {fileID: 330585548}
+    - target: {fileID: 3124284530968468283, guid: bb129c6f94eda284ba6d66a206f3396a, type: 3}
+      propertyPath: m_SlerpDrive.positionSpring
+      value: 8
+      objectReference: {fileID: 0}
+    - target: {fileID: 3316118755945779123, guid: bb129c6f94eda284ba6d66a206f3396a, type: 3}
+      propertyPath: m_SlerpDrive.positionSpring
+      value: 8
+      objectReference: {fileID: 0}
+    - target: {fileID: 3339302782544632752, guid: bb129c6f94eda284ba6d66a206f3396a, type: 3}
+      propertyPath: m_AngularDamping
+      value: 0.01
+      objectReference: {fileID: 0}
+    - target: {fileID: 3615454884779451710, guid: bb129c6f94eda284ba6d66a206f3396a, type: 3}
+      propertyPath: m_AngularDamping
+      value: 0.01
+      objectReference: {fileID: 0}
+    - target: {fileID: 3752505977677193753, guid: bb129c6f94eda284ba6d66a206f3396a, type: 3}
+      propertyPath: m_AngularDamping
+      value: 0.01
+      objectReference: {fileID: 0}
+    - target: {fileID: 4435328267197837618, guid: bb129c6f94eda284ba6d66a206f3396a, type: 3}
+      propertyPath: m_AngularDamping
+      value: 0.01
+      objectReference: {fileID: 0}
+    - target: {fileID: 4579679164230369246, guid: bb129c6f94eda284ba6d66a206f3396a, type: 3}
+      propertyPath: m_SlerpDrive.positionSpring
+      value: 4
+      objectReference: {fileID: 0}
+    - target: {fileID: 4849021456723259204, guid: bb129c6f94eda284ba6d66a206f3396a, type: 3}
+      propertyPath: m_AngularDamping
+      value: 0.01
+      objectReference: {fileID: 0}
+    - target: {fileID: 6233886172571411313, guid: bb129c6f94eda284ba6d66a206f3396a, type: 3}
+      propertyPath: m_SlerpDrive.positionSpring
+      value: 10
+      objectReference: {fileID: 0}
+    - target: {fileID: 6246408966506205692, guid: bb129c6f94eda284ba6d66a206f3396a, type: 3}
+      propertyPath: m_SlerpDrive.positionSpring
+      value: 8
+      objectReference: {fileID: 0}
+    - target: {fileID: 6774035982306874639, guid: bb129c6f94eda284ba6d66a206f3396a, type: 3}
+      propertyPath: m_AngularDamping
+      value: 0.01
+      objectReference: {fileID: 0}
+    - target: {fileID: 6934218486405417171, guid: bb129c6f94eda284ba6d66a206f3396a, type: 3}
+      propertyPath: m_AngularDamping
+      value: 0.01
+      objectReference: {fileID: 0}
+    - target: {fileID: 7184753317797517624, guid: bb129c6f94eda284ba6d66a206f3396a, type: 3}
+      propertyPath: m_AngularDamping
+      value: 0.01
+      objectReference: {fileID: 0}
+    - target: {fileID: 7232819787063459054, guid: bb129c6f94eda284ba6d66a206f3396a, type: 3}
+      propertyPath: m_Controller
+      value: 
+      objectReference: {fileID: 9100000, guid: e92f17c9d74b359458bbb8e7960b65d8, type: 2}
+    - target: {fileID: 7349912669625232914, guid: bb129c6f94eda284ba6d66a206f3396a, type: 3}
+      propertyPath: m_SlerpDrive.positionSpring
+      value: 15
+      objectReference: {fileID: 0}
+    - target: {fileID: 7661691663174550105, guid: bb129c6f94eda284ba6d66a206f3396a, type: 3}
+      propertyPath: m_AngularDamping
+      value: 0.01
+      objectReference: {fileID: 0}
+    - target: {fileID: 7669571461862935098, guid: bb129c6f94eda284ba6d66a206f3396a, type: 3}
+      propertyPath: m_SlerpDrive.positionSpring
+      value: 3
+      objectReference: {fileID: 0}
+    - target: {fileID: 8019944267334290195, guid: bb129c6f94eda284ba6d66a206f3396a, type: 3}
+      propertyPath: m_SlerpDrive.positionSpring
+      value: 10
+      objectReference: {fileID: 0}
+    - target: {fileID: 8080517179568522601, guid: bb129c6f94eda284ba6d66a206f3396a, type: 3}
+      propertyPath: m_SlerpDrive.positionSpring
+      value: 4
+      objectReference: {fileID: 0}
+    - target: {fileID: 8602794271817614757, guid: bb129c6f94eda284ba6d66a206f3396a, type: 3}
+      propertyPath: m_LocalPosition.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 8602794271817614757, guid: bb129c6f94eda284ba6d66a206f3396a, type: 3}
+      propertyPath: m_LocalPosition.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 8602794271817614757, guid: bb129c6f94eda284ba6d66a206f3396a, type: 3}
+      propertyPath: m_LocalPosition.z
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 8602794271817614757, guid: bb129c6f94eda284ba6d66a206f3396a, type: 3}
+      propertyPath: m_LocalRotation.w
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 8602794271817614757, guid: bb129c6f94eda284ba6d66a206f3396a, type: 3}
+      propertyPath: m_LocalRotation.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 8602794271817614757, guid: bb129c6f94eda284ba6d66a206f3396a, type: 3}
+      propertyPath: m_LocalRotation.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 8602794271817614757, guid: bb129c6f94eda284ba6d66a206f3396a, type: 3}
+      propertyPath: m_LocalRotation.z
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 8602794271817614757, guid: bb129c6f94eda284ba6d66a206f3396a, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 8602794271817614757, guid: bb129c6f94eda284ba6d66a206f3396a, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 8602794271817614757, guid: bb129c6f94eda284ba6d66a206f3396a, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.z
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 8730692604019197998, guid: bb129c6f94eda284ba6d66a206f3396a, type: 3}
+      propertyPath: m_SlerpDrive.positionSpring
+      value: 20
+      objectReference: {fileID: 0}
+    - target: {fileID: 9190789654861737870, guid: bb129c6f94eda284ba6d66a206f3396a, type: 3}
+      propertyPath: m_AngularDamping
+      value: 0.01
+      objectReference: {fileID: 0}
+    m_RemovedComponents:
+    - {fileID: 986432761337144498, guid: bb129c6f94eda284ba6d66a206f3396a, type: 3}
+    m_RemovedGameObjects: []
+    m_AddedGameObjects: []
+    m_AddedComponents:
+    - targetCorrespondingSourceObject: {fileID: 499166073464393770, guid: bb129c6f94eda284ba6d66a206f3396a, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 9446587}
+  m_SourcePrefab: {fileID: 100100000, guid: bb129c6f94eda284ba6d66a206f3396a, type: 3}
+--- !u!114 &1017539979 stripped
+MonoBehaviour:
+  m_CorrespondingSourceObject: {fileID: 2985837566165524593, guid: bb129c6f94eda284ba6d66a206f3396a, type: 3}
+  m_PrefabInstance: {fileID: 1017539978}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 9446578}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f7fd44ab56274c546a914a5122cff048, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::DrunkNetworkPlayer
+--- !u!114 &1017539980 stripped
+MonoBehaviour:
+  m_CorrespondingSourceObject: {fileID: 1801859087222961341, guid: bb129c6f94eda284ba6d66a206f3396a, type: 3}
+  m_PrefabInstance: {fileID: 1017539978}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 9446578}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 5738cb542896e0648bce3ed07006f524, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::NetworkGrabSync
 --- !u!1 &1232895517
 GameObject:
   m_ObjectHideFlags: 0
@@ -935,3 +1216,4 @@ SceneRoots:
   - {fileID: 1232895522}
   - {fileID: 7433080504034568041}
   - {fileID: 780408221}
+  - {fileID: 1017539978}

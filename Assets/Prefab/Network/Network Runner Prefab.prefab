@@ -58,3 +58,4 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Spawner
   networkPlayerPrefab: {fileID: 986432761337144498, guid: bfe327d9f32213d41bea9b01d078abbb, type: 3}
+  drunkNetworkPlayerPrefab: {fileID: 2985837566165524593, guid: bb129c6f94eda284ba6d66a206f3396a, type: 3}

@@ -13,12 +13,12 @@ GameObject:
   - component: {fileID: 506384405782805959}
   - component: {fileID: 6233886172571411313}
   - component: {fileID: 4116741021357772227}
-  - component: {fileID: 986432761337144498}
   - component: {fileID: 831954184173556811}
   - component: {fileID: 4049663247271412612}
+  - component: {fileID: 2985837566165524593}
   - component: {fileID: 1801859087222961341}
   m_Layer: 0
-  m_Name: Network Character prefab
+  m_Name: Network Drunk Character prefab
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -49,8 +49,8 @@ Rigidbody:
   m_GameObject: {fileID: 499166073464393770}
   serializedVersion: 5
   m_Mass: 1
-  m_LinearDamping: 0
-  m_AngularDamping: 0.02
+  m_LinearDamping: 5
+  m_AngularDamping: 2
   m_CenterOfMass: {x: 0, y: 0, z: 0}
   m_InertiaTensor: {x: 1, y: 1, z: 1}
   m_InertiaRotation: {x: 0, y: 0, z: 0, w: 1}
@@ -176,7 +176,7 @@ ConfigurableJoint:
   m_SlerpDrive:
     serializedVersion: 4
     positionSpring: 30
-    positionDamper: 0
+    positionDamper: 10
     maximumForce: 3.4028233e+38
     useAcceleration: 0
   m_ProjectionMode: 0
@@ -208,28 +208,6 @@ MonoBehaviour:
   - {fileID: 3197787694423912896}
   - {fileID: 8503647122089898883}
   - {fileID: 8302416170969671097}
---- !u!114 &986432761337144498
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 499166073464393770}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: e39c21f27015cd6419c44df64c4cc8e5, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::NetworkPlayer
-  rigidbody3D: {fileID: 7661691663174550105}
-  networkRigidbody3D: {fileID: 4049663247271412612}
-  mainJoint: {fileID: 6233886172571411313}
-  thirdPersonCamera: {fileID: 0}
-  bodyCollider: {fileID: 506384405782805959}
-  animator: {fileID: 7232819787063459054}
-  leftHandGrabber: {fileID: 6491804032878621232}
-  rightHandGrabber: {fileID: 2912755923695263319}
-  leftArmController: {fileID: 7782942084616713274}
-  rightArmController: {fileID: 4097129468070796743}
 --- !u!114 &831954184173556811
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -242,13 +220,13 @@ MonoBehaviour:
   m_Script: {fileID: -1552182283, guid: e725a070cec140c4caffb81624c8c787, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Fusion.Runtime.dll::Fusion.NetworkObject
-  SortKey: 2613299945
+  SortKey: 2984384628
   ObjectInterest: 1
   Flags: 262145
   NestedObjects: []
   NetworkedBehaviours:
-  - {fileID: 986432761337144498}
   - {fileID: 4049663247271412612}
+  - {fileID: 2985837566165524593}
   - {fileID: 1801859087222961341}
   ForceRemoteRenderTimeframe: 0
 --- !u!114 &4049663247271412612
@@ -268,6 +246,28 @@ MonoBehaviour:
   _NetPosition: {x: 0, y: 0, z: 0}
   _NetRotation: {x: 0, y: 0, z: 0, w: 0}
   _NetVelocity: {x: 0, y: 0, z: 0}
+--- !u!114 &2985837566165524593
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 499166073464393770}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f7fd44ab56274c546a914a5122cff048, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::DrunkNetworkPlayer
+  rigidbody3D: {fileID: 7661691663174550105}
+  networkRigidbody3D: {fileID: 4049663247271412612}
+  mainJoint: {fileID: 6233886172571411313}
+  thirdPersonCamera: {fileID: 0}
+  bodyCollider: {fileID: 506384405782805959}
+  animator: {fileID: 7232819787063459054}
+  leftHandGrabber: {fileID: 0}
+  rightHandGrabber: {fileID: 0}
+  leftArmController: {fileID: 0}
+  rightArmController: {fileID: 0}
 --- !u!114 &1801859087222961341
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -529,9 +529,6 @@ PrefabInstance:
     - targetCorrespondingSourceObject: {fileID: 5426684714369870728, guid: 41ce9191f95452c489489235bfe823a7, type: 3}
       insertIndex: -1
       addedObject: {fileID: 1560199147741605494}
-    - targetCorrespondingSourceObject: {fileID: 7155887995567562156, guid: 41ce9191f95452c489489235bfe823a7, type: 3}
-      insertIndex: -1
-      addedObject: {fileID: 7782942084616713274}
     - targetCorrespondingSourceObject: {fileID: -7946419333354526848, guid: 41ce9191f95452c489489235bfe823a7, type: 3}
       insertIndex: -1
       addedObject: {fileID: 9190789654861737870}
@@ -568,9 +565,6 @@ PrefabInstance:
     - targetCorrespondingSourceObject: {fileID: -6354201845140216395, guid: 41ce9191f95452c489489235bfe823a7, type: 3}
       insertIndex: -1
       addedObject: {fileID: 4570303787584715137}
-    - targetCorrespondingSourceObject: {fileID: -6354201845140216395, guid: 41ce9191f95452c489489235bfe823a7, type: 3}
-      insertIndex: -1
-      addedObject: {fileID: 6491804032878621232}
     - targetCorrespondingSourceObject: {fileID: 5473549350616871198, guid: 41ce9191f95452c489489235bfe823a7, type: 3}
       insertIndex: -1
       addedObject: {fileID: 6934218486405417171}
@@ -583,9 +577,6 @@ PrefabInstance:
     - targetCorrespondingSourceObject: {fileID: 5473549350616871198, guid: 41ce9191f95452c489489235bfe823a7, type: 3}
       insertIndex: -1
       addedObject: {fileID: 6505576201408824066}
-    - targetCorrespondingSourceObject: {fileID: -8752845190019232017, guid: 41ce9191f95452c489489235bfe823a7, type: 3}
-      insertIndex: -1
-      addedObject: {fileID: 4097129468070796743}
     - targetCorrespondingSourceObject: {fileID: 1134577483448101948, guid: 41ce9191f95452c489489235bfe823a7, type: 3}
       insertIndex: -1
       addedObject: {fileID: 3752505977677193753}
@@ -622,9 +613,6 @@ PrefabInstance:
     - targetCorrespondingSourceObject: {fileID: -4312204158450049391, guid: 41ce9191f95452c489489235bfe823a7, type: 3}
       insertIndex: -1
       addedObject: {fileID: 8030599321910227626}
-    - targetCorrespondingSourceObject: {fileID: -4312204158450049391, guid: 41ce9191f95452c489489235bfe823a7, type: 3}
-      insertIndex: -1
-      addedObject: {fileID: 2912755923695263319}
   m_SourcePrefab: {fileID: 100100000, guid: 41ce9191f95452c489489235bfe823a7, type: 3}
 --- !u!1 &546284477825363102 stripped
 GameObject:
@@ -968,31 +956,6 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::SyncPhysicsObject
   animatedRigidbody3D: {fileID: 2869427325004081927}
   syncAnimation: 1
---- !u!1 &1201276710979798513 stripped
-GameObject:
-  m_CorrespondingSourceObject: {fileID: -8752845190019232017, guid: 41ce9191f95452c489489235bfe823a7, type: 3}
-  m_PrefabInstance: {fileID: 1597774431420959518}
-  m_PrefabAsset: {fileID: 0}
---- !u!114 &4097129468070796743
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1201276710979798513}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: c6b7e8596cbf49c40b9c98cd9d9d117f, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::ArmController
-  upperArmJoint: {fileID: 7349912669625232914}
-  upperArmSync: {fileID: 6243703330934938795}
-  handRb: {fileID: 2489230919498927441}
-  shoulderPivot: {fileID: 2814886008803215455}
-  armReach: 0.35
-  mouseSensitivity: 0.2
-  minPitchDeg: -60
-  maxPitchDeg: 80
 --- !u!4 &1271939361443753205 stripped
 Transform:
   m_CorrespondingSourceObject: {fileID: -8679921383154817045, guid: 41ce9191f95452c489489235bfe823a7, type: 3}
@@ -1340,11 +1303,6 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::SyncPhysicsObject
   animatedRigidbody3D: {fileID: 2395249954350695545}
   syncAnimation: 1
---- !u!4 &2814886008803215455 stripped
-Transform:
-  m_CorrespondingSourceObject: {fileID: 3547733182786995009, guid: 41ce9191f95452c489489235bfe823a7, type: 3}
-  m_PrefabInstance: {fileID: 1597774431420959518}
-  m_PrefabAsset: {fileID: 0}
 --- !u!1 &3602097361612271275 stripped
 GameObject:
   m_CorrespondingSourceObject: {fileID: -6354201845140216395, guid: 41ce9191f95452c489489235bfe823a7, type: 3}
@@ -1514,36 +1472,6 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::SyncPhysicsObject
   animatedRigidbody3D: {fileID: 5469284601907822704}
   syncAnimation: 1
---- !u!114 &6491804032878621232
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 3602097361612271275}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: ec7542147dd801344953fe90cf04da85, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::HandGrabber
-  handRigidbody: {fileID: 2478756589938144570}
-  grabRadius: 0.12
-  grabMask:
-    serializedVersion: 2
-    m_Bits: 4294967295
-  grabSpring: 3000
-  grabDamper: 80
-  grabTolerance: 0.01
-  carrySpring: 800
-  carryDamper: 50
-  maxCarryMass: 40
-  pullUpForce: 15
-  pullUpHeightOffset: 0.1
---- !u!4 &4127614009640688534 stripped
-Transform:
-  m_CorrespondingSourceObject: {fileID: -5808424762904194936, guid: 41ce9191f95452c489489235bfe823a7, type: 3}
-  m_PrefabInstance: {fileID: 1597774431420959518}
-  m_PrefabAsset: {fileID: 0}
 --- !u!1 &4880875053263426647 stripped
 GameObject:
   m_CorrespondingSourceObject: {fileID: 6165486582592266057, guid: 41ce9191f95452c489489235bfe823a7, type: 3}
@@ -2055,31 +1983,6 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::SyncPhysicsObject
   animatedRigidbody3D: {fileID: 7566902234114202799}
   syncAnimation: 1
---- !u!114 &2912755923695263319
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 5911984186609309071}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: ec7542147dd801344953fe90cf04da85, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::HandGrabber
-  handRigidbody: {fileID: 2489230919498927441}
-  grabRadius: 0.12
-  grabMask:
-    serializedVersion: 2
-    m_Bits: 4294967295
-  grabSpring: 3000
-  grabDamper: 80
-  grabTolerance: 0.01
-  carrySpring: 800
-  carryDamper: 50
-  maxCarryMass: 40
-  pullUpForce: 15
-  pullUpHeightOffset: 0.1
 --- !u!1 &6729252641089691798 stripped
 GameObject:
   m_CorrespondingSourceObject: {fileID: 5426684714369870728, guid: 41ce9191f95452c489489235bfe823a7, type: 3}
@@ -2591,31 +2494,6 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::SyncPhysicsObject
   animatedRigidbody3D: {fileID: 2594469611504116059}
   syncAnimation: 1
---- !u!1 &8458531229976041138 stripped
-GameObject:
-  m_CorrespondingSourceObject: {fileID: 7155887995567562156, guid: 41ce9191f95452c489489235bfe823a7, type: 3}
-  m_PrefabInstance: {fileID: 1597774431420959518}
-  m_PrefabAsset: {fileID: 0}
---- !u!114 &7782942084616713274
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 8458531229976041138}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: c6b7e8596cbf49c40b9c98cd9d9d117f, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::ArmController
-  upperArmJoint: {fileID: 2212636811164050227}
-  upperArmSync: {fileID: 1519261716122025426}
-  handRb: {fileID: 2478756589938144570}
-  shoulderPivot: {fileID: 4127614009640688534}
-  armReach: 0.35
-  mouseSensitivity: 0.2
-  minPitchDeg: -60
-  maxPitchDeg: 80
 --- !u!1 &8727014967429132239 stripped
 GameObject:
   m_CorrespondingSourceObject: {fileID: 8012179170176869585, guid: 41ce9191f95452c489489235bfe823a7, type: 3}
@@ -2898,7 +2776,7 @@ PrefabInstance:
     - target: {fileID: 5866666021909216657, guid: 41ce9191f95452c489489235bfe823a7, type: 3}
       propertyPath: m_Controller
       value: 
-      objectReference: {fileID: 9100000, guid: 4a578c30ea53add4cbf5248356be333b, type: 2}
+      objectReference: {fileID: 9100000, guid: e92f17c9d74b359458bbb8e7960b65d8, type: 2}
     - target: {fileID: 5866666021909216657, guid: 41ce9191f95452c489489235bfe823a7, type: 3}
       propertyPath: m_CullingMode
       value: 0
@@ -2944,9 +2822,6 @@ PrefabInstance:
     - {fileID: -8391193718175552794, guid: 41ce9191f95452c489489235bfe823a7, type: 3}
     m_AddedGameObjects: []
     m_AddedComponents:
-    - targetCorrespondingSourceObject: {fileID: 919132149155446097, guid: 41ce9191f95452c489489235bfe823a7, type: 3}
-      insertIndex: -1
-      addedObject: {fileID: 6831145710517389261}
     - targetCorrespondingSourceObject: {fileID: 6165486582592266057, guid: 41ce9191f95452c489489235bfe823a7, type: 3}
       insertIndex: -1
       addedObject: {fileID: 8889261633355763424}
@@ -3117,29 +2992,6 @@ Rigidbody:
   m_Interpolate: 0
   m_Constraints: 0
   m_CollisionDetection: 0
---- !u!1 &4164667739620310062 stripped
-GameObject:
-  m_CorrespondingSourceObject: {fileID: 919132149155446097, guid: 41ce9191f95452c489489235bfe823a7, type: 3}
-  m_PrefabInstance: {fileID: 3822068373799682431}
-  m_PrefabAsset: {fileID: 0}
---- !u!114 &6831145710517389261
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 4164667739620310062}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 1000cadc8df8fa74ca5850942aad4d03, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::GrabIK
-  animator: {fileID: 7232819787063459054}
-  leftHandGrabber: {fileID: 6491804032878621232}
-  rightHandGrabber: {fileID: 2912755923695263319}
-  leftArmController: {fileID: 7782942084616713274}
-  rightArmController: {fileID: 4097129468070796743}
-  ikWeight: 1
 --- !u!1 &4230114639263919427 stripped
 GameObject:
   m_CorrespondingSourceObject: {fileID: 1134577483448101948, guid: 41ce9191f95452c489489235bfe823a7, type: 3}

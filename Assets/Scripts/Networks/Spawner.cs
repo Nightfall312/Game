@@ -7,6 +7,7 @@ using UnityEngine;
 public class Spawner : SimulationBehaviour, INetworkRunnerCallbacks
 {
     [SerializeField] NetworkPlayer networkPlayerPrefab;
+    [SerializeField] NetworkPlayer drunkNetworkPlayerPrefab;
 
     readonly Dictionary<PlayerRef, NetworkPlayer> _spawnedPlayers =
         new Dictionary<PlayerRef, NetworkPlayer>();
@@ -17,8 +18,14 @@ public class Spawner : SimulationBehaviour, INetworkRunnerCallbacks
         {
             Utils.DebugLog("OnPlayerJoined this is the server/host, spawning network player");
 
+            bool isDrunk = false;
+
+            NetworkPlayer prefab = isDrunk && drunkNetworkPlayerPrefab != null
+                ? drunkNetworkPlayerPrefab
+                : networkPlayerPrefab;
+
             NetworkPlayer playerObject = runner.Spawn(
-                networkPlayerPrefab,
+                prefab,
                 Vector3.zero,
                 Quaternion.identity,
                 player
@@ -31,6 +38,7 @@ public class Spawner : SimulationBehaviour, INetworkRunnerCallbacks
             Utils.DebugLog("OnPlayerJoined this is the client");
         }
     }
+
 
     public void OnPlayerLeft(NetworkRunner runner, PlayerRef player)
     {

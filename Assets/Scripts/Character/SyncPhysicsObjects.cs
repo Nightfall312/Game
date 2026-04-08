@@ -17,6 +17,9 @@ public class SyncPhysicsObject : MonoBehaviour
         startLocalRotation = transform.localRotation;
     }
 
+    /// <summary>Enables or disables animation sync at runtime (used by ArmController).</summary>
+    public void SetSyncAnimation(bool value) => syncAnimation = value;
+
     public void UpdateJointFromAnimation()
     {
         if (!syncAnimation)

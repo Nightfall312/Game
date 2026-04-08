@@ -105,6 +105,7 @@ public class ThirdPersonCamera : MonoBehaviour
     }
 
     public float CameraYaw => yaw;
+    public float CameraPitch => pitch;
 
     public void SetTarget(Transform newTarget)
     {
