@@ -18,7 +18,7 @@ public class GrabbableObject : NetworkBehaviour
     public void OnGrabbed()
     {
         _grabCount++;
-        if (Object.HasStateAuthority)
+        if (Object != null && Object.HasStateAuthority)
         {
             GrabbedBy = Runner.LocalPlayer;
         }
@@ -28,7 +28,7 @@ public class GrabbableObject : NetworkBehaviour
     public void OnReleased()
     {
         _grabCount = Mathf.Max(0, _grabCount - 1);
-        if (_grabCount == 0 && Object.HasStateAuthority)
+        if (_grabCount == 0 && Object != null && Object.HasStateAuthority)
         {
             GrabbedBy = PlayerRef.None;
         }

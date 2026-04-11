@@ -46,7 +46,9 @@ public class ThirdPersonCamera : MonoBehaviour
 
         Vector2 look = Vector2.zero;
 
-        if (Cursor.lockState == CursorLockMode.Locked && Mouse.current != null)
+        // Read mouse delta whenever the game is not paused — don't gate on cursor lock state
+        // because the cursor may momentarily unlock after a grab/drop, which would freeze camera rotation.
+        if (!PauseMenuManager.IsPaused && Mouse.current != null)
         {
             look = Mouse.current.delta.ReadValue();
         }

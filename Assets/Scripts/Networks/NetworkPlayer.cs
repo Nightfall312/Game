@@ -8,6 +8,9 @@ public class NetworkPlayer : NetworkBehaviour, IPlayerLeft
 {
     public static NetworkPlayer Local { get; private set; }
 
+    /// <summary>The root physics Rigidbody of this player — used by WeaponHit to apply knockback.</summary>
+    public Rigidbody RootRigidbody => rigidbody3D;
+
     [SerializeField] protected Rigidbody rigidbody3D;
     [SerializeField] protected NetworkRigidbody3D networkRigidbody3D;
     [SerializeField] protected ConfigurableJoint mainJoint;
@@ -24,16 +27,25 @@ public class NetworkPlayer : NetworkBehaviour, IPlayerLeft
     [SerializeField] protected ArmController leftArmController;
     [SerializeField] protected ArmController rightArmController;
 
+    [Header("Bend")]
+    [SerializeField] PlayerBend playerBend;
+
     Vector2 moveInputVector = Vector2.zero;
     bool isJumpButtonPressed = false;
+    bool isBendPressed = false;
 
     // Accumulated raw mouse delta between Update ticks, consumed in GetNetworkInput.
     Vector2 _accumulatedMouseDelta = Vector2.zero;
+
+    // Last received input — used to keep movement alive on ticks where GetInput returns false
+    // (e.g. during Fusion resimulation steps triggered by grab/drop physics events).
+    NetworkInputData _lastInput;
 
     const float defaultMaxSpeed        = 3f;
     const float backwardInputThreshold = 0.1f;
 
     protected bool isGrounded = false;
+    Vector3 _groundNormal = Vector3.up;
     RaycastHit[] raycastHits = new RaycastHit[10];
 
     InputSystem_Actions inputActions;
@@ -116,10 +128,21 @@ public class NetworkPlayer : NetworkBehaviour, IPlayerLeft
         if (Object == null || !Object.HasInputAuthority || inputActions == null)
             return;
 
-        moveInputVector = inputActions.Player.Move.ReadValue<Vector2>();
+        // Keep the cursor locked every frame so the game view always has focus.
+        // Without this, Unity's editor only delivers keyboard input while the mouse is clicked inside the view.
+        // Re-lock unconditionally after any grab/drop action that may have released the cursor.
+        if (!PauseMenuManager.IsPaused)
+        {
+            Cursor.lockState = CursorLockMode.Locked;
+            Cursor.visible   = false;
+        }
 
-        // Accumulate raw mouse delta every Update so no movement is lost between fixed ticks.
-        if (Cursor.lockState == CursorLockMode.Locked && Mouse.current != null)
+        moveInputVector = inputActions.Player.Move.ReadValue<Vector2>();
+        isBendPressed   = Keyboard.current != null && Keyboard.current.leftCtrlKey.isPressed;
+
+        // Accumulate raw mouse delta every Update. Read unconditionally while not paused
+        // so a momentary cursor state change after a grab/drop never freezes the camera.
+        if (!PauseMenuManager.IsPaused && Mouse.current != null)
             _accumulatedMouseDelta += Mouse.current.delta.ReadValue();
     }
 
@@ -189,6 +212,30 @@ public class NetworkPlayer : NetworkBehaviour, IPlayerLeft
 
         if (Object.HasStateAuthority && GetInput(out NetworkInputData networkInputData))
         {
+            _lastInput = networkInputData;
+        }
+        else if (Object.HasStateAuthority)
+        {
+            // GetInput returned false this tick (Fusion resimulation or dropped packet).
+            // Re-use the last confirmed input so movement force is never silently skipped.
+            // Clear one-shot flags so jump does not fire repeatedly.
+            networkInputData = _lastInput;
+            networkInputData.isJumpPressed = false;
+        }
+        else
+        {
+            // Not state authority — run animator from estimated velocity, no forces.
+            Vector3 estimatedVelocity = transform.InverseTransformDirection(
+                (transform.position - _lastPosition) / Mathf.Max(Time.fixedDeltaTime, 0.0001f));
+
+            UpdateAnimator(new Vector2(estimatedVelocity.x, estimatedVelocity.z));
+            UpdateSyncPhysicsObjects();
+            playerBend?.UpdateBend(false);
+            return;
+        }
+
+        if (Object.HasStateAuthority)
+        {
             _lastCameraYaw   = networkInputData.cameraYaw;
             _lastCameraPitch = networkInputData.cameraPitch;
 
@@ -214,7 +261,7 @@ public class NetworkPlayer : NetworkBehaviour, IPlayerLeft
             else
             {
                 leftHandGrabber?.Release();
-                leftArmController?.RestoreAnimationSync();
+                leftArmController?.DriveToRest();
             }
 
             // ── Right arm: drive joint and attempt grab while button is held ──
@@ -230,7 +277,7 @@ public class NetworkPlayer : NetworkBehaviour, IPlayerLeft
             else
             {
                 rightHandGrabber?.Release();
-                rightArmController?.RestoreAnimationSync();
+                rightArmController?.DriveToRest();
             }
 
 
@@ -248,21 +295,29 @@ public class NetworkPlayer : NetworkBehaviour, IPlayerLeft
                 (flatForward * networkInputData.movementInput.y +
                  flatRight * networkInputData.movementInput.x).normalized;
 
-            float localForwardVelocity = Vector3.Dot(flatForward, rigidbody3D.linearVelocity);
+            // Use the horizontal speed projected onto the move direction so the player
+            // can still accelerate when moving sideways or when the body has lateral velocity
+            // from a grab/drop interaction. Checking only the forward axis caused movement
+            // to appear locked whenever the rigidbody had residual side velocity.
+            Vector3 flatVelocity = new Vector3(rigidbody3D.linearVelocity.x, 0f, rigidbody3D.linearVelocity.z);
+            float moveDirectionSpeed = moveDir.sqrMagnitude > 0f
+                ? Vector3.Dot(flatVelocity, moveDir)
+                : 0f;
             float inputMagnitude = networkInputData.movementInput.magnitude;
 
-            if (inputMagnitude > 0f && localForwardVelocity < MaxMoveSpeed)
+            if (inputMagnitude > 0f && moveDirectionSpeed < MaxMoveSpeed)
             {
                 rigidbody3D.AddForce(moveDir * inputMagnitude * MoveForceMagnitude);
             }
 
             if (isGrounded && networkInputData.isJumpPressed)
             {
-                rigidbody3D.AddForce(Vector3.up * 10f, ForceMode.Impulse);
+                rigidbody3D.AddForce(Vector3.up * 15f, ForceMode.Impulse);
             }
 
             UpdateAnimator(networkInputData.movementInput);
             UpdateSyncPhysicsObjects();
+            playerBend?.UpdateBend(networkInputData.isBendPressed);
             return;
         }
 
@@ -271,6 +326,7 @@ public class NetworkPlayer : NetworkBehaviour, IPlayerLeft
 
         UpdateAnimator(new Vector2(localVelocity.x, localVelocity.z));
         UpdateSyncPhysicsObjects();
+        playerBend?.UpdateBend(false);
     }
 
     public override void Render()
@@ -311,6 +367,7 @@ public class NetworkPlayer : NetworkBehaviour, IPlayerLeft
         {
             movementInput    = moveInputVector,
             isJumpPressed    = isJumpButtonPressed,
+            isBendPressed    = isBendPressed,
             isLeftGrabHeld   = leftHeld,
             isRightGrabHeld  = rightHeld,
             cameraYaw        = yaw,
@@ -350,6 +407,7 @@ public class NetworkPlayer : NetworkBehaviour, IPlayerLeft
             }
 
             isGrounded = true;
+            _groundNormal = raycastHits[i].normal;
             break;
         }
 
@@ -357,13 +415,14 @@ public class NetworkPlayer : NetworkBehaviour, IPlayerLeft
         {
             // Extra downward force while airborne to prevent SpringJoint tension
             // from floating the player when grabbing objects above them.
+            _groundNormal = Vector3.up;
             rigidbody3D.AddForce(Vector3.down * 25f);
         }
         else
         {
-            // Always pin the root to the ground with a small downward assist so
-            // ragdoll joint tension from grabbed objects cannot lift the player up.
-            rigidbody3D.AddForce(Vector3.down * 15f);
+            // Push the player into the slope surface instead of straight down,
+            // so ramps and bridges can be traversed without needing to jump.
+            rigidbody3D.AddForce(-_groundNormal * 15f);
         }
     }
 

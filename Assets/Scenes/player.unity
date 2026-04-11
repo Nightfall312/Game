@@ -1143,6 +1143,14 @@ PrefabInstance:
     serializedVersion: 3
     m_TransformParent: {fileID: 0}
     m_Modifications:
+    - target: {fileID: 12798912535338759, guid: bfe327d9f32213d41bea9b01d078abbb, type: 3}
+      propertyPath: m_Height
+      value: 0.16
+      objectReference: {fileID: 0}
+    - target: {fileID: 12798912535338759, guid: bfe327d9f32213d41bea9b01d078abbb, type: 3}
+      propertyPath: m_Center.y
+      value: 0.07
+      objectReference: {fileID: 0}
     - target: {fileID: 499166073464393770, guid: bfe327d9f32213d41bea9b01d078abbb, type: 3}
       propertyPath: m_Name
       value: Network Character prefab
@@ -1155,10 +1163,66 @@ PrefabInstance:
       propertyPath: SortKey
       value: 4018181244
       objectReference: {fileID: 0}
+    - target: {fileID: 831954184173556811, guid: bfe327d9f32213d41bea9b01d078abbb, type: 3}
+      propertyPath: NetworkedBehaviours.Array.size
+      value: 3
+      objectReference: {fileID: 0}
+    - target: {fileID: 831954184173556811, guid: bfe327d9f32213d41bea9b01d078abbb, type: 3}
+      propertyPath: 'NetworkedBehaviours.Array.data[3]'
+      value: 
+      objectReference: {fileID: 0}
     - target: {fileID: 986432761337144498, guid: bfe327d9f32213d41bea9b01d078abbb, type: 3}
       propertyPath: thirdPersonCamera
       value: 
       objectReference: {fileID: 330585548}
+    - target: {fileID: 1206305265060249304, guid: bfe327d9f32213d41bea9b01d078abbb, type: 3}
+      propertyPath: m_Height
+      value: 0.17
+      objectReference: {fileID: 0}
+    - target: {fileID: 1206305265060249304, guid: bfe327d9f32213d41bea9b01d078abbb, type: 3}
+      propertyPath: m_Radius
+      value: 0.05
+      objectReference: {fileID: 0}
+    - target: {fileID: 1206305265060249304, guid: bfe327d9f32213d41bea9b01d078abbb, type: 3}
+      propertyPath: m_Center.y
+      value: 0.02
+      objectReference: {fileID: 0}
+    - target: {fileID: 1322069657118508560, guid: bfe327d9f32213d41bea9b01d078abbb, type: 3}
+      propertyPath: m_Height
+      value: 0.16
+      objectReference: {fileID: 0}
+    - target: {fileID: 1322069657118508560, guid: bfe327d9f32213d41bea9b01d078abbb, type: 3}
+      propertyPath: m_Center.y
+      value: 0.07
+      objectReference: {fileID: 0}
+    - target: {fileID: 2322703410154267863, guid: bfe327d9f32213d41bea9b01d078abbb, type: 3}
+      propertyPath: m_Height
+      value: 0.17
+      objectReference: {fileID: 0}
+    - target: {fileID: 2322703410154267863, guid: bfe327d9f32213d41bea9b01d078abbb, type: 3}
+      propertyPath: m_Radius
+      value: 0.05
+      objectReference: {fileID: 0}
+    - target: {fileID: 2322703410154267863, guid: bfe327d9f32213d41bea9b01d078abbb, type: 3}
+      propertyPath: m_Center.y
+      value: 0.02
+      objectReference: {fileID: 0}
+    - target: {fileID: 5489114760465617307, guid: bfe327d9f32213d41bea9b01d078abbb, type: 3}
+      propertyPath: m_Radius
+      value: 0.02
+      objectReference: {fileID: 0}
+    - target: {fileID: 5489114760465617307, guid: bfe327d9f32213d41bea9b01d078abbb, type: 3}
+      propertyPath: m_Center.y
+      value: 0.06
+      objectReference: {fileID: 0}
+    - target: {fileID: 6743618016287672438, guid: bfe327d9f32213d41bea9b01d078abbb, type: 3}
+      propertyPath: m_Radius
+      value: 0.02
+      objectReference: {fileID: 0}
+    - target: {fileID: 6743618016287672438, guid: bfe327d9f32213d41bea9b01d078abbb, type: 3}
+      propertyPath: m_Center.y
+      value: 0.06
+      objectReference: {fileID: 0}
     - target: {fileID: 8602794271817614757, guid: bfe327d9f32213d41bea9b01d078abbb, type: 3}
       propertyPath: m_LocalPosition.x
       value: 0

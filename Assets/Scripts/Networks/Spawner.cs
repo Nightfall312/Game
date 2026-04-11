@@ -8,6 +8,10 @@ public class Spawner : SimulationBehaviour, INetworkRunnerCallbacks
 {
     [SerializeField] NetworkPlayer networkPlayerPrefab;
     [SerializeField] NetworkPlayer drunkNetworkPlayerPrefab;
+    [Tooltip("The transform players spawn at. Assign grade_1 (or a child SpawnPoint on it) here.")]
+    [SerializeField] Transform spawnPoint;
+    [Tooltip("Vertical offset above the spawn point to avoid spawning inside geometry.")]
+    [SerializeField] float spawnHeightOffset = 1f;
 
     readonly Dictionary<PlayerRef, NetworkPlayer> _spawnedPlayers =
         new Dictionary<PlayerRef, NetworkPlayer>();
@@ -24,10 +28,14 @@ public class Spawner : SimulationBehaviour, INetworkRunnerCallbacks
                 ? drunkNetworkPlayerPrefab
                 : networkPlayerPrefab;
 
+            Vector3 spawnPos = spawnPoint != null
+                ? spawnPoint.position + Vector3.up * spawnHeightOffset
+                : Vector3.up * spawnHeightOffset;
+
             NetworkPlayer playerObject = runner.Spawn(
                 prefab,
-                Vector3.zero,
-                Quaternion.identity,
+                spawnPos,
+                spawnPoint != null ? spawnPoint.rotation : Quaternion.identity,
                 player
             );
 

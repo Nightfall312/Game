@@ -37,6 +37,10 @@ public class HandGrabber : MonoBehaviour
     GrabbableObject _grabbedObject;
     bool            _isGrabbing;
 
+    // Layer name whose objects should be ignored by the hand's own SphereCollider
+    // to prevent the ragdoll hand from physically pushing tools around.
+    const string GrabbableLayerName = "Grabbable";
+
     public bool    IsGrabbing => _isGrabbing;
     public Vector3 GrabPoint  => _grabWorldPoint;
 
@@ -52,6 +56,20 @@ public class HandGrabber : MonoBehaviour
     {
         _rootRigidbody = rootRb;
         _selfRoot      = rootRb != null ? rootRb.transform : null;
+
+        // Prevent the hand's physical collider from pushing Grabbable-layer objects.
+        // Without this the ragdoll hand bumps tools off the ground just by walking near them.
+        int grabbableLayer = LayerMask.NameToLayer(GrabbableLayerName);
+        if (grabbableLayer >= 0 && handRigidbody != null)
+        {
+            Collider[] handColliders = handRigidbody.GetComponentsInChildren<Collider>();
+            foreach (Collider handCol in handColliders)
+            {
+                // Ignore collisions between the hand and every Grabbable-layer collider in the scene.
+                // Physics.IgnoreLayerCollision is global and persists for the session.
+                Physics.IgnoreLayerCollision(handCol.gameObject.layer, grabbableLayer, true);
+            }
+        }
     }
 
     /// <summary>
@@ -78,7 +96,14 @@ public class HandGrabber : MonoBehaviour
         if (!_isGrabbing) return;
 
         if (_grabJoint != null) { Destroy(_grabJoint); _grabJoint = null; }
-        if (_grabbedObject != null) { _grabbedObject.OnReleased(); _grabbedObject = null; }
+
+        // Guard against the grabbed object being despawned or destroyed between grab and release.
+        if (_grabbedObject != null)
+        {
+            _grabbedObject.OnReleased();
+            _grabbedObject = null;
+        }
+
         _grabbedRigidbody = null;
         _isGrabbing       = false;
     }
@@ -152,11 +177,11 @@ public class HandGrabber : MonoBehaviour
         if (_grabbedRigidbody != null)
             _grabWorldPoint = _grabbedRigidbody.transform.TransformPoint(_grabLocalPoint);
 
-        // Pull-up: only assist when the player is airborne (i.e. genuinely climbing).
-        // When grounded, the downward pin force in NetworkPlayer already resists floating,
-        // so firing pull-up would just fight it and could still lift the player.
+        // Pull-up: only assist when climbing a static surface while airborne.
+        // Never apply to dynamic objects (carts, boxes) — the SpringJoint tension
+        // from a grabbed object above the player would otherwise lift them into the air.
         bool grabAboveBody = _grabWorldPoint.y > _rootRigidbody.position.y + pullUpHeightOffset;
-        if (!_isGrounded && grabAboveBody)
+        if (!_isGrounded && grabAboveBody && _grabbedRigidbody == null)
             _rootRigidbody.AddForce(Vector3.up * (pullUpForce / _activeHandCount));
 
         // Carry physics for dynamic objects below carry-mass limit.
@@ -168,10 +193,15 @@ public class HandGrabber : MonoBehaviour
     {
         if (_grabbedRigidbody.mass > maxCarryMass) return;
 
-        // Gravity compensation split across all hands currently holding this object.
-        // Without this, gravity pulls the object away from the SpringJoint anchor.
-        // With two hands, each compensates half so the total equals exactly one gravity.
-        int grabCount = _grabbedObject != null ? Mathf.Max(1, _grabbedObject.GrabCount) : 1;
+        // Only compensate gravity when the player is actually lifting the object —
+        // i.e. the grab point is above the object's center of mass.
+        // When pushing a grounded object (cart, box on floor) the grab point sits
+        // at or below the center of mass, so skipping compensation lets gravity
+        // pin the object to the ground instead of fighting it and causing floating.
+        bool isLifting = _grabWorldPoint.y > _grabbedRigidbody.worldCenterOfMass.y;
+        if (!isLifting) return;
+
+        int   grabCount  = _grabbedObject != null ? Mathf.Max(1, _grabbedObject.GrabCount) : 1;
         float shareRatio = 1f / grabCount;
         Vector3 gravComp = Vector3.up * (-Physics.gravity.y * _grabbedRigidbody.mass * shareRatio);
         _grabbedRigidbody.AddForce(gravComp);

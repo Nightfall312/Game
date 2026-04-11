@@ -7,6 +7,7 @@ public struct NetworkInputData : INetworkInput
     public NetworkBool isJumpPressed;
     public NetworkBool isLeftGrabHeld;
     public NetworkBool isRightGrabHeld;
+    public NetworkBool isBendPressed;
     public float cameraYaw;
     public float cameraPitch;
 

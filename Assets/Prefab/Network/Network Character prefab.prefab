@@ -17,6 +17,7 @@ GameObject:
   - component: {fileID: 831954184173556811}
   - component: {fileID: 4049663247271412612}
   - component: {fileID: 1801859087222961341}
+  - component: {fileID: 7654423142113718233}
   m_Layer: 0
   m_Name: Network Character prefab
   m_TagString: Untagged
@@ -176,7 +177,7 @@ ConfigurableJoint:
   m_SlerpDrive:
     serializedVersion: 4
     positionSpring: 30
-    positionDamper: 0
+    positionDamper: 8
     maximumForce: 3.4028233e+38
     useAcceleration: 0
   m_ProjectionMode: 0
@@ -230,6 +231,7 @@ MonoBehaviour:
   rightHandGrabber: {fileID: 2912755923695263319}
   leftArmController: {fileID: 7782942084616713274}
   rightArmController: {fileID: 4097129468070796743}
+  playerBend: {fileID: 7654423142113718233}
 --- !u!114 &831954184173556811
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -286,6 +288,22 @@ MonoBehaviour:
     _value: 0
   _LeftGrabPoint: {x: 0, y: 0, z: 0}
   _RightGrabPoint: {x: 0, y: 0, z: 0}
+--- !u!114 &7654423142113718233
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 499166073464393770}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 7956e51f421f2f449aa099fa7cc6de93, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::PlayerBend
+  spineJoint: {fileID: 8730692604019197998}
+  spineSync: {fileID: 1560199147741605494}
+  bendAngleDegrees: 55
+  bendSmoothing: 8
 --- !u!1 &2829272713993188068
 GameObject:
   m_ObjectHideFlags: 0
@@ -993,6 +1011,8 @@ MonoBehaviour:
   mouseSensitivity: 0.2
   minPitchDeg: -60
   maxPitchDeg: 80
+  maxYawOffsetDeg: 70
+  restBlendSpeed: 180
 --- !u!4 &1271939361443753205 stripped
 Transform:
   m_CorrespondingSourceObject: {fileID: -8679921383154817045, guid: 41ce9191f95452c489489235bfe823a7, type: 3}
@@ -1534,8 +1554,6 @@ MonoBehaviour:
   grabSpring: 3000
   grabDamper: 80
   grabTolerance: 0.01
-  carrySpring: 800
-  carryDamper: 50
   maxCarryMass: 40
   pullUpForce: 15
   pullUpHeightOffset: 0.1
@@ -2075,8 +2093,6 @@ MonoBehaviour:
   grabSpring: 3000
   grabDamper: 80
   grabTolerance: 0.01
-  carrySpring: 800
-  carryDamper: 50
   maxCarryMass: 40
   pullUpForce: 15
   pullUpHeightOffset: 0.1
@@ -2223,7 +2239,7 @@ ConfigurableJoint:
   m_SlerpDrive:
     serializedVersion: 4
     positionSpring: 100
-    positionDamper: 0
+    positionDamper: 10
     maximumForce: 3.4028233e+38
     useAcceleration: 0
   m_ProjectionMode: 0
@@ -2616,6 +2632,8 @@ MonoBehaviour:
   mouseSensitivity: 0.2
   minPitchDeg: -60
   maxPitchDeg: 80
+  maxYawOffsetDeg: 70
+  restBlendSpeed: 180
 --- !u!1 &8727014967429132239 stripped
 GameObject:
   m_CorrespondingSourceObject: {fileID: 8012179170176869585, guid: 41ce9191f95452c489489235bfe823a7, type: 3}

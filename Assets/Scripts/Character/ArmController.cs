@@ -1,13 +1,5 @@
 using UnityEngine;
 
-/// <summary>
-/// HFF-style arm controller.
-/// Mouse delta moves a world-space hand target on a sphere around the shoulder.
-/// The UPPER ARM ConfigurableJoint targetRotation is set to aim the arm at that target —
-/// exactly the same mechanism SyncPhysicsObject uses, so the joint spring does all the work
-/// and the ragdoll never explodes.
-/// The forearm and hand keep their animation sync untouched.
-/// </summary>
 public class ArmController : MonoBehaviour
 {
     // ─── Inspector ────────────────────────────────────────────────────────────────
@@ -29,6 +21,12 @@ public class ArmController : MonoBehaviour
     [SerializeField] float mouseSensitivity = 0.2f;
     [SerializeField] float minPitchDeg = -60f;
     [SerializeField] float maxPitchDeg = 80f;
+    [Tooltip("Max yaw deviation (degrees) from the arm's initial offset. Prevents the arm from swinging behind the back.")]
+    [SerializeField] float maxYawOffsetDeg = 70f;
+
+    [Header("Resting pose (no mouse button held)")]
+    [Tooltip("How quickly the arm blends toward the straight-down resting position (degrees per second).")]
+    [SerializeField] float restBlendSpeed = 180f;
 
     // ─── State ────────────────────────────────────────────────────────────────────
 
@@ -40,6 +38,9 @@ public class ArmController : MonoBehaviour
     Quaternion _upperArmStartLocalRot;
     bool _initialized;
     bool _hasValidTarget;
+
+    // Smoothly interpolated world-space arm direction used by DriveToRest.
+    Vector3 _currentRestDir;
 
     // ─── Public ───────────────────────────────────────────────────────────────────
 
@@ -74,6 +75,11 @@ public class ArmController : MonoBehaviour
         _yawDeg   += pixelDelta.x * mouseSensitivity;
         _pitchDeg -= pixelDelta.y * mouseSensitivity;
         _pitchDeg  = Mathf.Clamp(_pitchDeg, minPitchDeg, maxPitchDeg);
+        // Clamp yaw as an offset from the arm's initial side offset so the constraint
+        // is symmetric for both arms and prevents the arm from going behind the back.
+        _yawDeg    = Mathf.Clamp(_yawDeg,
+                                  _initialYawOffset - maxYawOffsetDeg,
+                                  _initialYawOffset + maxYawOffsetDeg);
     }
 
     /// <summary>Recomputes _handTarget. Call in GetNetworkInput().</summary>
@@ -126,13 +132,59 @@ public class ArmController : MonoBehaviour
     }
 
     /// <summary>
-    /// Restores animation sync and resets arm yaw/pitch to the neutral offset
-    /// so the next grab always starts from a predictable resting position.
+    /// Drives the upper arm to a natural straight-down resting position each physics tick.
+    /// Smoothly interpolates toward Vector3.down so the arm eases into place rather than
+    /// snapping. Uses the shoulder's own forward as the perpendicular reference so both
+    /// arms maintain the correct bone roll without twisting.
+    /// Call every FixedUpdateNetwork tick while no mouse button is held.
+    /// </summary>
+    public void DriveToRest()
+    {
+        if (!_initialized || upperArmJoint == null || shoulderPivot == null) return;
+
+        upperArmSync?.SetSyncAnimation(false);
+
+        // Reset yaw/pitch accumulators toward neutral so the next grab starts cleanly.
+        _yawDeg   = Mathf.MoveTowards(_yawDeg,   _initialYawOffset,   restBlendSpeed * Time.fixedDeltaTime);
+        _pitchDeg = Mathf.MoveTowards(_pitchDeg, _initialPitchOffset, restBlendSpeed * Time.fixedDeltaTime);
+
+        // Target direction: straight down. Arms hang naturally at the character's sides.
+        if (_currentRestDir == Vector3.zero) _currentRestDir = Vector3.down;
+        _currentRestDir = Vector3.RotateTowards(
+            _currentRestDir, Vector3.down,
+            restBlendSpeed * Mathf.Deg2Rad * Time.fixedDeltaTime, 1f).normalized;
+
+        Vector3 armUp = _currentRestDir;
+
+        // Use the shoulder's own forward as the perpendicular reference so each arm's
+        // bone roll follows its own natural plane — this eliminates the left-arm twist
+        // that occurs when both arms share the same world-space perpRef.
+        Vector3 perpRef = shoulderPivot.forward;
+        if (Mathf.Abs(Vector3.Dot(armUp, perpRef)) > 0.98f) perpRef = shoulderPivot.right;
+        Vector3    armFwd         = Vector3.Cross(armUp, perpRef).normalized;
+        Quaternion targetWorldRot = Quaternion.LookRotation(armFwd, armUp);
+
+        Transform  parent         = upperArmJoint.transform.parent;
+        Quaternion targetLocalRot = parent != null
+            ? Quaternion.Inverse(parent.rotation) * targetWorldRot
+            : targetWorldRot;
+
+        ConfigurableJointExtensions.SetTargetRotationLocal(
+            upperArmJoint, targetLocalRot, _upperArmStartLocalRot);
+
+        _handTarget     = shoulderPivot.position + _currentRestDir * armReach;
+        _hasValidTarget = true;
+    }
+
+    /// <summary>
+    /// Resets arm yaw/pitch accumulators to the neutral offset. Call when transitioning
+    /// away from grab so the next press always starts from a predictable position.
     /// </summary>
     public void RestoreAnimationSync()
     {
-        upperArmSync?.SetSyncAnimation(true);
-        _yawDeg   = _initialYawOffset;
-        _pitchDeg = _initialPitchOffset;
+        upperArmSync?.SetSyncAnimation(false);
+        _yawDeg         = _initialYawOffset;
+        _pitchDeg       = _initialPitchOffset;
+        _currentRestDir = Vector3.zero;
     }
 }
