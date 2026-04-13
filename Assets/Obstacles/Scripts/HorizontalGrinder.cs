@@ -9,7 +9,9 @@ namespace Hyper_Casuel_Obstacle
         [SerializeField] private Transform grinder;
         [SerializeField] private bool reverse;
         [SerializeField] private float duraction;
-        
+
+        // Values above 1 slow down the obstacle; below 1 speed it up.
+        [SerializeField] private float speedMultiplier = 1.4f;
 
         private void Start()
         {
@@ -17,15 +19,16 @@ namespace Hyper_Casuel_Obstacle
         }
         private void StartAnimation()
         {
+            float duration = duraction * speedMultiplier;
             if (reverse)
             {
                 var rotation = new Vector3(-360, 0, 0);
-                grinder.DOLocalRotate(rotation, duraction, RotateMode.FastBeyond360).SetLoops(-1, LoopType.Restart).SetEase(Ease.Linear).SetRelative(true);
+                grinder.DOLocalRotate(rotation, duration, RotateMode.FastBeyond360).SetLoops(-1, LoopType.Restart).SetEase(Ease.Linear).SetRelative(true);
             }
             else
             {
                 var rotation = new Vector3(360, 0, 0);
-                grinder.DOLocalRotate(rotation, duraction, RotateMode.FastBeyond360).SetLoops(-1, LoopType.Restart).SetEase(Ease.Linear).SetRelative(true);
+                grinder.DOLocalRotate(rotation, duration, RotateMode.FastBeyond360).SetLoops(-1, LoopType.Restart).SetEase(Ease.Linear).SetRelative(true);
             }
         }
     }

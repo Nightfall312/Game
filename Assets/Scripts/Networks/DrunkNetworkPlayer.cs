@@ -20,15 +20,18 @@ public class DrunkNetworkPlayer : NetworkPlayer
         if (rigidbody3D != null)
         {
             rigidbody3D.linearDamping  = 6f;
-            rigidbody3D.angularDamping = 10f;
-            rigidbody3D.constraints    = RigidbodyConstraints.FreezeRotationX
-                                       | RigidbodyConstraints.FreezeRotationZ;
+            // Keep high angular damping — no hard FreezeRotation constraints because those
+            // fight SpringJoint grabs and collapse the ragdoll. The slerp drive + angular
+            // damping below handle upright stability instead.
+            rigidbody3D.angularDamping = 14f;
+            rigidbody3D.constraints    = RigidbodyConstraints.None;
         }
 
         if (mainJoint != null)
         {
             JointDrive slerpDrive      = mainJoint.slerpDrive;
-            slerpDrive.positionDamper  = 12f;
+            slerpDrive.positionSpring  = 1200f;
+            slerpDrive.positionDamper  = 50f;
             mainJoint.slerpDrive       = slerpDrive;
         }
     }

@@ -124,6 +124,13 @@ public class ArmController : MonoBehaviour
     public void SetHandTarget(Vector3 worldTarget) => _handTarget = worldTarget;
 
     /// <summary>
+    /// Overrides the hand target for this tick to the actual grab contact point.
+    /// Call every FixedUpdate while grabbing so the arm drives TOWARD the grab
+    /// instead of fighting the SpringJoint that is also pulling the hand there.
+    /// </summary>
+    public void OverrideHandTargetToGrabPoint(Vector3 grabWorldPoint) => _handTarget = grabWorldPoint;
+
+    /// <summary>
     /// Drives the upper arm ConfigurableJoint toward _handTarget and keeps the forearm
     /// straight by locking it to its initial rest rotation. This produces a fully extended,
     /// unbent arm regardless of the target direction.
@@ -174,7 +181,17 @@ public class ArmController : MonoBehaviour
                 forearmJoint, _forearmStartLocalRot, _forearmStartLocalRot);
     }
 
-    // ─── Helpers ──────────────────────────────────────────────────────────────────
+    /// <summary>
+    /// Call when grab starts/ends. Since the physics grab is now on the ROOT body (not the
+    /// arm chain), we keep the arm drives STRONG during grab so the arm holds its pose
+    /// toward the grab point and looks visually connected — not limp.
+    /// We only store/restore to keep the API compatible with call sites.
+    /// </summary>
+    public void SetGrabMode(bool grabbing)
+    {
+        // Arm drives stay at their configured values — no softening needed.
+        // The root body SpringJoint carries the physics; the arm is visual-only.
+    }
 
     /// <summary>
     /// Drives a ConfigurableJoint so its local Y-axis points from <paramref name="origin"/>

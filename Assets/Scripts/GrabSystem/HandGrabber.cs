@@ -1,57 +1,76 @@
 using UnityEngine;
 
 /// <summary>
-/// HFF-style grab. When the grab button is held and the hand touches a surface,
-/// a SpringJoint is created anchored to the exact contact point. The ragdoll joint
-/// chain transmits the tension upward so the whole character hangs naturally — just
-/// like in the video. Releasing the button destroys the joint immediately.
+/// HFF-style grab system.
+///
+/// The SpringJoint is attached to the ROOT Rigidbody (not the hand bone).
+/// This means grab forces move the whole body as one rigid unit — no ragdoll
+/// chain to collapse, no arm stretching. The arm bones are driven by ArmController
+/// for visual IK only; they are NOT in the physics grab path.
+///
+/// The joint anchor is placed at the hand's world position expressed in root-local
+/// space, so the body is pulled from the correct offset point (arm height)
+/// rather than from its centre of mass.
 /// </summary>
 public class HandGrabber : MonoBehaviour
 {
     [Header("References")]
     [SerializeField] Rigidbody handRigidbody;
-    [Tooltip("Fingertip transform — grab detection and spring anchor use this point instead of the hand bone center.")]
+    [Tooltip("Hand tip transform — used for grab detection overlap position only.")]
     [SerializeField] Transform handTip;
 
     [Header("Grab detection")]
-    [SerializeField] float grabRadius = 0.12f;
+    [SerializeField] float grabRadius = 0.18f;
     [SerializeField] LayerMask grabMask = ~0;
 
-    [Header("Grab SpringJoint")]
-    [SerializeField] float grabSpring    = 800f;
-    [SerializeField] float grabDamper    = 80f;
-    [SerializeField] float grabTolerance = 0.01f;
+    [Header("Grab SpringJoint (applied to root body)")]
+    [SerializeField] float grabSpring      = 1800f;
+    [SerializeField] float grabDamper      = 120f;
+    [SerializeField] float grabTolerance   = 0.01f;
+    [SerializeField] float grabMaxDistance = 0f;
 
-    [Header("Carry — dynamic Rigidbody objects")]
-    [SerializeField] float maxCarryMass  = 40f;
-
-    [Header("Pull-up assist")]
-    [SerializeField] float pullUpForce        = 30f;
+    [Header("Pull-up assist (airborne climbing)")]
+    [SerializeField] float pullUpForce        = 25f;
     [SerializeField] float pullUpHeightOffset = 0.05f;
+
+    [Header("Release fling")]
+    [Tooltip("Fraction of obstacle surface velocity transferred to root on release.")]
+    [SerializeField] float releaseImpulse = 0.25f;
+
+    [Header("Arm reach guard")]
+    [Tooltip("Shoulder transform — auto-releases if grab point moves beyond arm reach.")]
+    [SerializeField] Transform shoulderPivot;
+    [SerializeField] float maxArmReach = 0.8f;
+
+    // ── Runtime ───────────────────────────────────────────────────────────────────
 
     Rigidbody _rootRigidbody;
     Transform _selfRoot;
 
-    SpringJoint     _grabJoint;
-    Rigidbody       _grabbedRigidbody;
-    Vector3         _grabWorldPoint;
-    Vector3         _grabLocalPoint;
-    GrabbableObject _grabbedObject;
-    bool            _isGrabbing;
+    // Joint lives on the root body, not the hand.
+    SpringJoint _grabJoint;
+    bool        _isGrabbing;
 
-    // Layer name whose objects should be ignored by the hand's own SphereCollider
-    // to prevent the ragdoll hand from physically pushing tools around.
+    Rigidbody       _grabbedRigidbody;
+    GrabbableObject _grabbedObject;
+    Vector3         _grabLocalOnDynamic;
+
+    Transform _anchorTransform;
+    Vector3   _anchorLocalPoint;
+    Vector3   _anchorPrevWorld;
+    Vector3   _anchorVelocity;
+
+    Vector3 _grabWorldPoint;
+
     const string GrabbableLayerName = "Grabbable";
 
-    public bool    IsGrabbing => _isGrabbing;
-    public Vector3 GrabPoint  => _grabWorldPoint;
-
-    // Injected by NetworkPlayer each tick — how many hands are simultaneously grabbing.
-    // Used to split pull-up force evenly so two-hand grabs don't double the upward push.
     int  _activeHandCount = 1;
     bool _isGrounded      = true;
 
-    // ─── Public API ───────────────────────────────────────────────────────────────
+    // ── Public API ────────────────────────────────────────────────────────────────
+
+    public bool    IsGrabbing => _isGrabbing;
+    public Vector3 GrabPoint  => _grabWorldPoint;
 
     /// <summary>Called once by NetworkPlayer after spawning.</summary>
     public void Initialize(Rigidbody rootRb)
@@ -59,24 +78,15 @@ public class HandGrabber : MonoBehaviour
         _rootRigidbody = rootRb;
         _selfRoot      = rootRb != null ? rootRb.transform : null;
 
-        // Exclude the Grabbable layer from each hand collider individually so the hand
-        // does not physically push tools around. Using Collider.excludeLayers (per-collider)
-        // instead of Physics.IgnoreLayerCollision (global) avoids also muting collisions
-        // between Grabbable objects and terrain/ground which share the Default layer.
         int grabbableLayer = LayerMask.NameToLayer(GrabbableLayerName);
         if (grabbableLayer >= 0 && handRigidbody != null)
         {
-            Collider[] handColliders = handRigidbody.GetComponentsInChildren<Collider>();
-            foreach (Collider handCol in handColliders)
-                handCol.excludeLayers = handCol.excludeLayers | (1 << grabbableLayer);
+            foreach (Collider c in handRigidbody.GetComponentsInChildren<Collider>())
+                c.excludeLayers = c.excludeLayers | (1 << grabbableLayer);
         }
     }
 
-    /// <summary>
-    /// Must be called by NetworkPlayer before TryGrabOrHold each tick.
-    /// Tells this grabber how many hands are actively grabbing so pull-up force is shared,
-    /// and whether the player is grounded so pull-up only fires while climbing.
-    /// </summary>
+    /// <summary>Injects per-tick context from NetworkPlayer.</summary>
     public void SetFrameContext(int activeHandCount, bool isGrounded)
     {
         _activeHandCount = Mathf.Max(1, activeHandCount);
@@ -90,37 +100,33 @@ public class HandGrabber : MonoBehaviour
         if (_isGrabbing)  ApplyAssistForces();
     }
 
-    /// <summary>Releases the grab and destroys the SpringJoint.</summary>
+    /// <summary>Releases the grab and applies a momentum fling if the obstacle was moving.</summary>
     public void Release()
     {
         if (!_isGrabbing) return;
 
+        if (_anchorTransform != null && _rootRigidbody != null && _anchorVelocity.sqrMagnitude > 0.1f)
+            _rootRigidbody.AddForce(_anchorVelocity * releaseImpulse, ForceMode.VelocityChange);
+
         if (_grabJoint != null) { Destroy(_grabJoint); _grabJoint = null; }
 
-        // Guard against the grabbed object being despawned or destroyed between grab and release.
-        if (_grabbedObject != null)
-        {
-            _grabbedObject.OnReleased();
-            _grabbedObject = null;
-        }
-
+        _grabbedObject?.OnReleased();
+        _grabbedObject    = null;
         _grabbedRigidbody = null;
+        _anchorTransform  = null;
+        _anchorVelocity   = Vector3.zero;
         _isGrabbing       = false;
     }
 
-    // ─── Internal ─────────────────────────────────────────────────────────────────
+    // ── Internal ──────────────────────────────────────────────────────────────────
 
     void TryAttach()
     {
-        if (handRigidbody == null) return;
+        if (handRigidbody == null || _rootRigidbody == null) return;
 
-        // Use the fingertip position for detection so the grab triggers at the tip of the
-        // fingers, not the center of the hand bone. Falls back to hand center if not assigned.
         Vector3 tipPos = handTip != null ? handTip.position : handRigidbody.position;
 
-        Collider[] hits = Physics.OverlapSphere(
-            tipPos, grabRadius, grabMask,
-            QueryTriggerInteraction.Ignore);
+        Collider[] hits = Physics.OverlapSphere(tipPos, grabRadius, grabMask, QueryTriggerInteraction.Ignore);
 
         float    bestSq  = float.MaxValue;
         Collider bestCol = null;
@@ -142,53 +148,98 @@ public class HandGrabber : MonoBehaviour
         _grabWorldPoint = worldPoint;
         _isGrabbing     = true;
 
-        _grabJoint = handRigidbody.gameObject.AddComponent<SpringJoint>();
+        // Kill spin immediately so the upright drive starts from a stable state.
+        Vector3 av = _rootRigidbody.angularVelocity;
+        _rootRigidbody.angularVelocity = new Vector3(0f, av.y * 0.3f, 0f);
+
+        // ── Create SpringJoint on ROOT Rigidbody ──────────────────────────────────
+        // The whole body moves as one unit. No force travels through the ragdoll arm
+        // chain, so there is nothing to collapse or stretch.
+        _grabJoint = _rootRigidbody.gameObject.AddComponent<SpringJoint>();
         _grabJoint.autoConfigureConnectedAnchor = false;
         _grabJoint.spring          = grabSpring;
         _grabJoint.damper          = grabDamper;
         _grabJoint.tolerance       = grabTolerance;
         _grabJoint.minDistance     = 0f;
-        _grabJoint.maxDistance     = 0f;
+        _grabJoint.maxDistance     = grabMaxDistance;
         _grabJoint.enableCollision = true;
 
-        // Anchor the spring at the fingertip in the hand rigidbody's local space so the
-        // grab force is applied at the tip of the fingers, not the palm center.
-        _grabJoint.anchor = handTip != null
-            ? handRigidbody.transform.InverseTransformPoint(handTip.position)
-            : Vector3.zero;
+        // Place the root anchor at the hand's current world position expressed in
+        // root-local space. Body is pulled from arm height, not from the CoM.
+        Vector3 handWorld = handTip != null ? handTip.position : handRigidbody.position;
+        _grabJoint.anchor = _rootRigidbody.transform.InverseTransformPoint(handWorld);
 
         Rigidbody hitRb = col.attachedRigidbody;
+
         if (hitRb != null && !hitRb.isKinematic)
         {
+            // Dynamic rigidbody: connect to it directly, Unity tracks the anchor.
             _grabbedRigidbody          = hitRb;
-            _grabLocalPoint            = hitRb.transform.InverseTransformPoint(worldPoint);
+            _grabLocalOnDynamic        = hitRb.transform.InverseTransformPoint(worldPoint);
             _grabJoint.connectedBody   = hitRb;
-            _grabJoint.connectedAnchor = _grabLocalPoint;
+            _grabJoint.connectedAnchor = _grabLocalOnDynamic;
 
             _grabbedObject = col.GetComponentInParent<GrabbableObject>();
             _grabbedObject?.OnGrabbed();
         }
+        else if (hitRb != null)
+        {
+            // Kinematic rigidbody (DOTween etc.): connect to it; Unity resolves local space.
+            _grabJoint.connectedBody   = hitRb;
+            _grabJoint.connectedAnchor = hitRb.transform.InverseTransformPoint(worldPoint);
+            _anchorTransform           = hitRb.transform;
+            _anchorLocalPoint          = hitRb.transform.InverseTransformPoint(worldPoint);
+            _anchorPrevWorld           = worldPoint;
+            _anchorVelocity            = Vector3.zero;
+        }
         else
         {
-            _grabbedRigidbody          = null;
+            // Pure transform-animated obstacle (no Rigidbody at all).
+            // connectedAnchor is world-space when connectedBody is null; update each tick.
             _grabJoint.connectedBody   = null;
             _grabJoint.connectedAnchor = worldPoint;
+            _anchorTransform           = col.transform;
+            _anchorLocalPoint          = col.transform.InverseTransformPoint(worldPoint);
+            _anchorPrevWorld           = worldPoint;
+            _anchorVelocity            = Vector3.zero;
         }
     }
 
     void ApplyAssistForces()
     {
-        if (_rootRigidbody == null || handRigidbody == null) return;
+        if (_rootRigidbody == null) return;
 
-        // Track the grab point on dynamic objects for the pull-up height check.
-        // Do NOT update connectedAnchor — it is the contact point on the grabbed body
-        // and must stay fixed. The SpringJoint naturally drags the object as the hand moves.
+        // ── Track moving / kinematic obstacle ─────────────────────────────────────
+        if (_anchorTransform != null)
+        {
+            Vector3 currentWorld = _anchorTransform.TransformPoint(_anchorLocalPoint);
+
+            if (shoulderPivot != null && Vector3.Distance(shoulderPivot.position, currentWorld) > maxArmReach)
+            {
+                Release();
+                return;
+            }
+
+            _anchorVelocity  = (currentWorld - _anchorPrevWorld) / Time.fixedDeltaTime;
+            _anchorPrevWorld = currentWorld;
+            _grabWorldPoint  = currentWorld;
+
+            if (_grabJoint != null && _grabJoint.connectedBody == null)
+                _grabJoint.connectedAnchor = currentWorld;
+
+            // Re-sync root anchor to current hand position each tick so the pull
+            // point stays accurate even as the body swings below the bar.
+            if (_grabJoint != null && handTip != null)
+                _grabJoint.anchor = _rootRigidbody.transform.InverseTransformPoint(handTip.position);
+        }
+
+        // ── Dynamic object: sync grab world point ─────────────────────────────────
         if (_grabbedRigidbody != null)
-            _grabWorldPoint = _grabbedRigidbody.transform.TransformPoint(_grabLocalPoint);
+            _grabWorldPoint = _grabbedRigidbody.transform.TransformPoint(_grabLocalOnDynamic);
 
-        // Pull-up: only assist when climbing a static surface while airborne.
+        // ── Pull-up assist ─────────────────────────────────────────────────────────
         bool grabAboveBody = _grabWorldPoint.y > _rootRigidbody.position.y + pullUpHeightOffset;
-        if (!_isGrounded && grabAboveBody && _grabbedRigidbody == null)
+        if (!_isGrounded && grabAboveBody)
             _rootRigidbody.AddForce(Vector3.up * (pullUpForce / _activeHandCount));
     }
 

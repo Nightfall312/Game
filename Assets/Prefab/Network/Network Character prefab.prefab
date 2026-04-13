@@ -50,9 +50,9 @@ Rigidbody:
   m_GameObject: {fileID: 499166073464393770}
   serializedVersion: 5
   m_Mass: 1
-  m_LinearDamping: 0
-  m_AngularDamping: 0.02
-  m_CenterOfMass: {x: 0, y: 0, z: 0}
+  m_LinearDamping: 2
+  m_AngularDamping: 12
+  m_CenterOfMass: {x: 0, y: 0.12, z: 0}
   m_InertiaTensor: {x: 1, y: 1, z: 1}
   m_InertiaRotation: {x: 0, y: 0, z: 0, w: 1}
   m_IncludeLayers:
@@ -61,7 +61,7 @@ Rigidbody:
   m_ExcludeLayers:
     serializedVersion: 2
     m_Bits: 0
-  m_ImplicitCom: 1
+  m_ImplicitCom: 0
   m_ImplicitTensor: 1
   m_UseGravity: 1
   m_IsKinematic: 0
@@ -107,9 +107,9 @@ ConfigurableJoint:
   m_XMotion: 2
   m_YMotion: 2
   m_ZMotion: 2
-  m_AngularXMotion: 0
+  m_AngularXMotion: 2
   m_AngularYMotion: 2
-  m_AngularZMotion: 0
+  m_AngularZMotion: 2
   m_LinearLimitSpring:
     spring: 0
     damper: 0
@@ -176,8 +176,8 @@ ConfigurableJoint:
     useAcceleration: 0
   m_SlerpDrive:
     serializedVersion: 4
-    positionSpring: 30
-    positionDamper: 8
+    positionSpring: 1200
+    positionDamper: 40
     maximumForce: 3.4028233e+38
     useAcceleration: 0
   m_ProjectionMode: 0
@@ -786,13 +786,13 @@ ConfigurableJoint:
     useAcceleration: 0
   m_SlerpDrive:
     serializedVersion: 4
-    positionSpring: 600
-    positionDamper: 20
+    positionSpring: 2500
+    positionDamper: 60
     maximumForce: 3.4028233e+38
     useAcceleration: 0
-  m_ProjectionMode: 0
-  m_ProjectionDistance: 0.1
-  m_ProjectionAngle: 180
+  m_ProjectionMode: 1
+  m_ProjectionDistance: 0.01
+  m_ProjectionAngle: 5
   m_ConfiguredInWorldSpace: 0
   m_SwapBodies: 0
   m_BreakForce: Infinity
@@ -1005,8 +1005,11 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::ArmController
   upperArmJoint: {fileID: 7349912669625232914}
   upperArmSync: {fileID: 6243703330934938795}
+  forearmJoint: {fileID: 0}
+  forearmSync: {fileID: 0}
   handRb: {fileID: 2489230919498927441}
   shoulderPivot: {fileID: 2814886008803215455}
+  bodyRoot: {fileID: 0}
   armReach: 0.35
   mouseSensitivity: 0.2
   minPitchDeg: -60
@@ -1160,13 +1163,13 @@ ConfigurableJoint:
     useAcceleration: 0
   m_SlerpDrive:
     serializedVersion: 4
-    positionSpring: 600
-    positionDamper: 20
+    positionSpring: 2500
+    positionDamper: 60
     maximumForce: 3.4028233e+38
     useAcceleration: 0
-  m_ProjectionMode: 0
-  m_ProjectionDistance: 0.1
-  m_ProjectionAngle: 180
+  m_ProjectionMode: 1
+  m_ProjectionDistance: 0.01
+  m_ProjectionAngle: 5
   m_ConfiguredInWorldSpace: 0
   m_SwapBodies: 0
   m_BreakForce: Infinity
@@ -1331,13 +1334,13 @@ ConfigurableJoint:
     useAcceleration: 0
   m_SlerpDrive:
     serializedVersion: 4
-    positionSpring: 80
-    positionDamper: 5
+    positionSpring: 1200
+    positionDamper: 40
     maximumForce: 3.4028233e+38
     useAcceleration: 0
-  m_ProjectionMode: 0
-  m_ProjectionDistance: 0.1
-  m_ProjectionAngle: 180
+  m_ProjectionMode: 1
+  m_ProjectionDistance: 0.01
+  m_ProjectionAngle: 5
   m_ConfiguredInWorldSpace: 0
   m_SwapBodies: 0
   m_BreakForce: Infinity
@@ -1547,16 +1550,19 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::HandGrabber
   handRigidbody: {fileID: 2478756589938144570}
+  handTip: {fileID: 0}
   grabRadius: 0.12
   grabMask:
     serializedVersion: 2
     m_Bits: 4294967295
-  grabSpring: 3000
-  grabDamper: 80
+  grabSpring: 1400
+  grabDamper: 90
   grabTolerance: 0.01
-  maxCarryMass: 40
-  pullUpForce: 15
+  pullUpForce: 20
   pullUpHeightOffset: 0.1
+  releaseImpulse: 0.5
+  shoulderPivot: {fileID: 0}
+  maxArmReach: 0.65
 --- !u!4 &4127614009640688534 stripped
 Transform:
   m_CorrespondingSourceObject: {fileID: -5808424762904194936, guid: 41ce9191f95452c489489235bfe823a7, type: 3}
@@ -2086,16 +2092,19 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::HandGrabber
   handRigidbody: {fileID: 2489230919498927441}
+  handTip: {fileID: 0}
   grabRadius: 0.12
   grabMask:
     serializedVersion: 2
     m_Bits: 4294967295
-  grabSpring: 3000
-  grabDamper: 80
+  grabSpring: 1400
+  grabDamper: 90
   grabTolerance: 0.01
-  maxCarryMass: 40
-  pullUpForce: 15
+  pullUpForce: 20
   pullUpHeightOffset: 0.1
+  releaseImpulse: 0.5
+  shoulderPivot: {fileID: 0}
+  maxArmReach: 0.65
 --- !u!1 &6729252641089691798 stripped
 GameObject:
   m_CorrespondingSourceObject: {fileID: 5426684714369870728, guid: 41ce9191f95452c489489235bfe823a7, type: 3}
@@ -2626,8 +2635,11 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::ArmController
   upperArmJoint: {fileID: 2212636811164050227}
   upperArmSync: {fileID: 1519261716122025426}
+  forearmJoint: {fileID: 0}
+  forearmSync: {fileID: 0}
   handRb: {fileID: 2478756589938144570}
   shoulderPivot: {fileID: 4127614009640688534}
+  bodyRoot: {fileID: 0}
   armReach: 0.35
   mouseSensitivity: 0.2
   minPitchDeg: -60
@@ -2776,13 +2788,13 @@ ConfigurableJoint:
     useAcceleration: 0
   m_SlerpDrive:
     serializedVersion: 4
-    positionSpring: 80
-    positionDamper: 5
+    positionSpring: 1200
+    positionDamper: 40
     maximumForce: 3.4028233e+38
     useAcceleration: 0
-  m_ProjectionMode: 0
-  m_ProjectionDistance: 0.1
-  m_ProjectionAngle: 180
+  m_ProjectionMode: 1
+  m_ProjectionDistance: 0.01
+  m_ProjectionAngle: 5
   m_ConfiguredInWorldSpace: 0
   m_SwapBodies: 0
   m_BreakForce: Infinity

@@ -9,8 +9,10 @@ namespace Hyper_Casuel_Obstacle
         [SerializeField] private Transform grinderRotation;
         [SerializeField] private float movePosision;
         [SerializeField] private float moveDuration;
-
         [SerializeField] private float rotateDuration;
+
+        // Values above 1 slow down the obstacle; below 1 speed it up.
+        [SerializeField] private float speedMultiplier = 1.4f;
 
         private void Start()
         {
@@ -19,14 +21,14 @@ namespace Hyper_Casuel_Obstacle
         }
         private void MoveGrinder()
         {
-            grinderMovement.DOLocalMoveX(movePosision, moveDuration, false).SetLoops(-1, LoopType.Yoyo)
-            .SetEase(Ease.InOutSine);
+            grinderMovement.DOLocalMoveX(movePosision, moveDuration * speedMultiplier, false)
+            .SetLoops(-1, LoopType.Yoyo).SetEase(Ease.InOutSine);
         }
 
         private void RotateGrinder()
         {
             var rotationNew = new Vector3(0, 360, 0);
-            grinderRotation.DOLocalRotate(rotationNew, rotateDuration, RotateMode.FastBeyond360)
+            grinderRotation.DOLocalRotate(rotationNew, rotateDuration * speedMultiplier, RotateMode.FastBeyond360)
             .SetLoops(-1, LoopType.Restart).SetEase(Ease.Linear).SetRelative(true);
         }
     }

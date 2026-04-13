@@ -206,13 +206,20 @@ public class NetworkPlayer : NetworkBehaviour, IPlayerLeft
         if (rigidbody3D != null)
         {
             rigidbody3D.linearDamping  = 2f;
-            rigidbody3D.angularDamping = 5f;
+            // High angular damping resists rotational forces from grabs/collisions
+            // without hard constraints that cause physics launches.
+            rigidbody3D.angularDamping = 12f;
         }
 
         if (mainJoint != null)
         {
+            // Slerp drive spring of 1200 is strong enough to keep the body upright
+            // while the angular axes are Free (no hard Locked constraint). This is the
+            // HFF approach: soft spring resists tipping rather than a locked axis that
+            // fights the SpringJoint and causes the ragdoll to collapse.
             JointDrive slerpDrive = mainJoint.slerpDrive;
-            slerpDrive.positionDamper = 8f;
+            slerpDrive.positionSpring = 1200f;
+            slerpDrive.positionDamper = 40f;
             mainJoint.slerpDrive = slerpDrive;
         }
     }
@@ -283,6 +290,12 @@ public class NetworkPlayer : NetworkBehaviour, IPlayerLeft
                 {
                     leftArmController?.SetHandTarget(networkInputData.leftHandTarget);
                 }
+
+                // If the hand is already grabbing, override the arm target to the actual
+                // grab contact point so the arm drives TOWARD the grab instead of fighting it.
+                if (leftHandGrabber != null && leftHandGrabber.IsGrabbing)
+                    leftArmController?.OverrideHandTargetToGrabPoint(leftHandGrabber.GrabPoint);
+
                 leftArmController?.UpdateArm();
                 leftHandGrabber?.TryGrabOrHold();
             }
@@ -299,6 +312,12 @@ public class NetworkPlayer : NetworkBehaviour, IPlayerLeft
                 {
                     rightArmController?.SetHandTarget(networkInputData.rightHandTarget);
                 }
+
+                // If the hand is already grabbing, override the arm target to the actual
+                // grab contact point so the arm drives TOWARD the grab instead of fighting it.
+                if (rightHandGrabber != null && rightHandGrabber.IsGrabbing)
+                    rightArmController?.OverrideHandTargetToGrabPoint(rightHandGrabber.GrabPoint);
+
                 rightArmController?.UpdateArm();
                 rightHandGrabber?.TryGrabOrHold();
             }
@@ -306,6 +325,34 @@ public class NetworkPlayer : NetworkBehaviour, IPlayerLeft
             {
                 rightHandGrabber?.Release();
                 rightArmController?.DriveToRest();
+            }
+
+            // ── Upright stabilization while grabbing ──────────────────────────────────
+            // Since angular axes are now Free (not Locked), the slerp drive and angular
+            // damping must do all the stabilisation work. While grabbing, aggressively
+            // bleed pitch/roll angular velocity every tick so the body self-rights even
+            // when the SpringJoint is pulling hard — matching HFF's feel.
+            bool anyGrabbing = (leftHandGrabber  != null && leftHandGrabber.IsGrabbing)
+                            || (rightHandGrabber != null && rightHandGrabber.IsGrabbing);
+
+            if (anyGrabbing && rigidbody3D != null)
+            {
+                Vector3 av = rigidbody3D.angularVelocity;
+                // Damp pitch (X) and roll (Z) very aggressively while hanging/grabbing.
+                // Leave yaw (Y) relatively free so the player can still swing/turn.
+                rigidbody3D.angularVelocity = new Vector3(av.x * 0.3f, av.y * 0.85f, av.z * 0.3f);
+
+                // Additionally apply a corrective torque toward world-upright to counteract
+                // the grab spring pulling the root sideways. This is the equivalent of
+                // HFF's pelvis upright constraint — a torque, not a hard lock.
+                Vector3 bodyUp   = rigidbody3D.transform.up;
+                Vector3 corrAxis = Vector3.Cross(bodyUp, Vector3.up);
+                if (corrAxis.sqrMagnitude > 0.0001f)
+                    rigidbody3D.AddTorque(corrAxis * 120f, ForceMode.Acceleration);
+            }
+            else if (!anyGrabbing && rigidbody3D != null)
+            {
+                rigidbody3D.constraints = RigidbodyConstraints.None;
             }
 
 

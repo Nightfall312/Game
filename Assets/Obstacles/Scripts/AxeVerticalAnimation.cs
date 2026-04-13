@@ -10,6 +10,9 @@ namespace Hyper_Casuel_Obstacle
         [SerializeField] private float rotationZ;
         [SerializeField] private float rotateDuration;
 
+        // Values above 1 slow down the obstacle; below 1 speed it up.
+        [SerializeField] private float speedMultiplier = 1.4f;
+
         private void Start()
         {
             axe.transform.localRotation = quaternion.Euler(0, 0, -rotationZ);
@@ -19,10 +22,8 @@ namespace Hyper_Casuel_Obstacle
         private void StartAxeAnimation()
         {
             var rotationVector = new Vector3(0, 0, rotationZ);
-            axe.DOLocalRotate(rotationVector, rotateDuration, RotateMode.Fast)
+            axe.DOLocalRotate(rotationVector, rotateDuration * speedMultiplier, RotateMode.Fast)
             .SetLoops(-1, LoopType.Yoyo).SetEase(Ease.InOutQuad);
         }
-
     }
 }
-
