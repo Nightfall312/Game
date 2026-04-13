@@ -57,6 +57,10 @@ public class NetworkPlayer : NetworkBehaviour, IPlayerLeft
     protected float _lastCameraYaw;
     float _lastCameraPitch;
 
+    // Smoothed body facing yaw — body turns slightly behind the camera for HFF body-lag feel.
+    float _facingYaw;
+    float _facingYawVelocity;
+
     protected virtual float MaxMoveSpeed => defaultMaxSpeed;
     protected virtual float MoveForceMagnitude => 30f;
 
@@ -149,6 +153,10 @@ public class NetworkPlayer : NetworkBehaviour, IPlayerLeft
 
     public override void Spawned()
     {
+        // Apply physics settings on every instance so both state authority and
+        // simulated proxies share the same drag/damping values for consistent simulation.
+        ApplyBasePhysicsSettings();
+
         if (animator == null)
         {
             animator = GetComponentInChildren<Animator>();
@@ -187,6 +195,26 @@ public class NetworkPlayer : NetworkBehaviour, IPlayerLeft
         Cursor.visible = false;
 
         InitializeGrabbers();
+    }
+
+    /// <summary>
+    /// Sets Rigidbody drag and joint damper for HFF-style weighted movement.
+    /// Override in subclasses (e.g. DrunkNetworkPlayer) to apply character-specific values.
+    /// </summary>
+    protected virtual void ApplyBasePhysicsSettings()
+    {
+        if (rigidbody3D != null)
+        {
+            rigidbody3D.linearDamping  = 2f;
+            rigidbody3D.angularDamping = 5f;
+        }
+
+        if (mainJoint != null)
+        {
+            JointDrive slerpDrive = mainJoint.slerpDrive;
+            slerpDrive.positionDamper = 8f;
+            mainJoint.slerpDrive = slerpDrive;
+        }
     }
 
     /// <summary>Wires up arm controllers, grabbers, and the network sync component after spawning.</summary>
@@ -281,24 +309,32 @@ public class NetworkPlayer : NetworkBehaviour, IPlayerLeft
             }
 
 
-            Quaternion inputRotation = Quaternion.Euler(0f, _lastCameraYaw, 0f);
-            Vector3 flatForward = inputRotation * Vector3.forward;
-            Vector3 flatRight = inputRotation * Vector3.right;
+            // Smoothly rotate the body to face the camera — gives HFF-style body lag on turns.
+            _facingYaw = Mathf.SmoothDampAngle(
+                _facingYaw, _lastCameraYaw, ref _facingYawVelocity, 0.1f);
+
+            // Lean body into the movement direction: forward when walking, back when reversing.
+            float forwardLean   = -networkInputData.movementInput.y * 12f;
+            float sideLean      = -networkInputData.movementInput.x * 5f;
+            Quaternion bodyRot  = Quaternion.Euler(forwardLean, _facingYaw, sideLean);
+
+            // Use raw camera yaw for movement direction so the player moves exactly where
+            // the camera faces regardless of how far the body has turned yet.
+            Quaternion camYawRot = Quaternion.Euler(0f, _lastCameraYaw, 0f);
+            Vector3 flatForward  = camYawRot * Vector3.forward;
+            Vector3 flatRight    = camYawRot * Vector3.right;
 
             if (mainJoint != null)
             {
                 ConfigurableJointExtensions.SetTargetRotationLocal(
-                    mainJoint, inputRotation, _jointStartRotation);
+                    mainJoint, bodyRot, _jointStartRotation);
             }
 
             Vector3 moveDir =
                 (flatForward * networkInputData.movementInput.y +
-                 flatRight * networkInputData.movementInput.x).normalized;
+                 flatRight   * networkInputData.movementInput.x).normalized;
 
-            // Use the horizontal speed projected onto the move direction so the player
-            // can still accelerate when moving sideways or when the body has lateral velocity
-            // from a grab/drop interaction. Checking only the forward axis caused movement
-            // to appear locked whenever the rigidbody had residual side velocity.
+            // Project current velocity onto move direction to know if we're already fast enough.
             Vector3 flatVelocity = new Vector3(rigidbody3D.linearVelocity.x, 0f, rigidbody3D.linearVelocity.z);
             float moveDirectionSpeed = moveDir.sqrMagnitude > 0f
                 ? Vector3.Dot(flatVelocity, moveDir)
@@ -308,6 +344,13 @@ public class NetworkPlayer : NetworkBehaviour, IPlayerLeft
             if (inputMagnitude > 0f && moveDirectionSpeed < MaxMoveSpeed)
             {
                 rigidbody3D.AddForce(moveDir * inputMagnitude * MoveForceMagnitude);
+            }
+
+            // Coast to a halt with momentum when no key is held — HFF characters don't stop instantly.
+            if (inputMagnitude < 0.1f && isGrounded)
+            {
+                Vector3 vel = rigidbody3D.linearVelocity;
+                rigidbody3D.linearVelocity = new Vector3(vel.x * 0.80f, vel.y, vel.z * 0.80f);
             }
 
             if (isGrounded && networkInputData.isJumpPressed)
@@ -413,16 +456,13 @@ public class NetworkPlayer : NetworkBehaviour, IPlayerLeft
 
         if (!isGrounded)
         {
-            // Extra downward force while airborne to prevent SpringJoint tension
-            // from floating the player when grabbing objects above them.
+            // Heavier fall gravity — HFF characters drop fast and feel weighty in the air.
             _groundNormal = Vector3.up;
-            rigidbody3D.AddForce(Vector3.down * 25f);
+            rigidbody3D.AddForce(Vector3.down * 35f);
         }
         else
         {
-            // Push the player into the slope surface instead of straight down,
-            // so ramps and bridges can be traversed without needing to jump.
-            rigidbody3D.AddForce(-_groundNormal * 15f);
+            rigidbody3D.AddForce(-_groundNormal * 18f);
         }
     }
 

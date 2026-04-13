@@ -10,14 +10,16 @@ public class HandGrabber : MonoBehaviour
 {
     [Header("References")]
     [SerializeField] Rigidbody handRigidbody;
+    [Tooltip("Fingertip transform — grab detection and spring anchor use this point instead of the hand bone center.")]
+    [SerializeField] Transform handTip;
 
     [Header("Grab detection")]
     [SerializeField] float grabRadius = 0.12f;
     [SerializeField] LayerMask grabMask = ~0;
 
     [Header("Grab SpringJoint")]
-    [SerializeField] float grabSpring    = 6000f;
-    [SerializeField] float grabDamper    = 150f;
+    [SerializeField] float grabSpring    = 800f;
+    [SerializeField] float grabDamper    = 80f;
     [SerializeField] float grabTolerance = 0.01f;
 
     [Header("Carry — dynamic Rigidbody objects")]
@@ -57,18 +59,16 @@ public class HandGrabber : MonoBehaviour
         _rootRigidbody = rootRb;
         _selfRoot      = rootRb != null ? rootRb.transform : null;
 
-        // Prevent the hand's physical collider from pushing Grabbable-layer objects.
-        // Without this the ragdoll hand bumps tools off the ground just by walking near them.
+        // Exclude the Grabbable layer from each hand collider individually so the hand
+        // does not physically push tools around. Using Collider.excludeLayers (per-collider)
+        // instead of Physics.IgnoreLayerCollision (global) avoids also muting collisions
+        // between Grabbable objects and terrain/ground which share the Default layer.
         int grabbableLayer = LayerMask.NameToLayer(GrabbableLayerName);
         if (grabbableLayer >= 0 && handRigidbody != null)
         {
             Collider[] handColliders = handRigidbody.GetComponentsInChildren<Collider>();
             foreach (Collider handCol in handColliders)
-            {
-                // Ignore collisions between the hand and every Grabbable-layer collider in the scene.
-                // Physics.IgnoreLayerCollision is global and persists for the session.
-                Physics.IgnoreLayerCollision(handCol.gameObject.layer, grabbableLayer, true);
-            }
+                handCol.excludeLayers = handCol.excludeLayers | (1 << grabbableLayer);
         }
     }
 
@@ -114,8 +114,12 @@ public class HandGrabber : MonoBehaviour
     {
         if (handRigidbody == null) return;
 
+        // Use the fingertip position for detection so the grab triggers at the tip of the
+        // fingers, not the center of the hand bone. Falls back to hand center if not assigned.
+        Vector3 tipPos = handTip != null ? handTip.position : handRigidbody.position;
+
         Collider[] hits = Physics.OverlapSphere(
-            handRigidbody.position, grabRadius, grabMask,
+            tipPos, grabRadius, grabMask,
             QueryTriggerInteraction.Ignore);
 
         float    bestSq  = float.MaxValue;
@@ -125,8 +129,8 @@ public class HandGrabber : MonoBehaviour
         foreach (Collider col in hits)
         {
             if (IsOwnBody(col)) continue;
-            Vector3 pt = col.ClosestPoint(handRigidbody.position);
-            float   sq = (pt - handRigidbody.position).sqrMagnitude;
+            Vector3 pt = col.ClosestPoint(tipPos);
+            float   sq = (pt - tipPos).sqrMagnitude;
             if (sq < bestSq) { bestSq = sq; bestCol = col; bestPt = pt; }
         }
 
@@ -138,7 +142,6 @@ public class HandGrabber : MonoBehaviour
         _grabWorldPoint = worldPoint;
         _isGrabbing     = true;
 
-        // Add SpringJoint to the hand Rigidbody anchored at the grab point.
         _grabJoint = handRigidbody.gameObject.AddComponent<SpringJoint>();
         _grabJoint.autoConfigureConnectedAnchor = false;
         _grabJoint.spring          = grabSpring;
@@ -147,7 +150,12 @@ public class HandGrabber : MonoBehaviour
         _grabJoint.minDistance     = 0f;
         _grabJoint.maxDistance     = 0f;
         _grabJoint.enableCollision = true;
-        _grabJoint.anchor          = Vector3.zero;
+
+        // Anchor the spring at the fingertip in the hand rigidbody's local space so the
+        // grab force is applied at the tip of the fingers, not the palm center.
+        _grabJoint.anchor = handTip != null
+            ? handRigidbody.transform.InverseTransformPoint(handTip.position)
+            : Vector3.zero;
 
         Rigidbody hitRb = col.attachedRigidbody;
         if (hitRb != null && !hitRb.isKinematic)
@@ -162,7 +170,6 @@ public class HandGrabber : MonoBehaviour
         }
         else
         {
-            // Static surface: anchor to world space.
             _grabbedRigidbody          = null;
             _grabJoint.connectedBody   = null;
             _grabJoint.connectedAnchor = worldPoint;
@@ -173,38 +180,16 @@ public class HandGrabber : MonoBehaviour
     {
         if (_rootRigidbody == null || handRigidbody == null) return;
 
-        // Track moving grab point on dynamic objects.
+        // Track the grab point on dynamic objects for the pull-up height check.
+        // Do NOT update connectedAnchor — it is the contact point on the grabbed body
+        // and must stay fixed. The SpringJoint naturally drags the object as the hand moves.
         if (_grabbedRigidbody != null)
             _grabWorldPoint = _grabbedRigidbody.transform.TransformPoint(_grabLocalPoint);
 
         // Pull-up: only assist when climbing a static surface while airborne.
-        // Never apply to dynamic objects (carts, boxes) — the SpringJoint tension
-        // from a grabbed object above the player would otherwise lift them into the air.
         bool grabAboveBody = _grabWorldPoint.y > _rootRigidbody.position.y + pullUpHeightOffset;
         if (!_isGrounded && grabAboveBody && _grabbedRigidbody == null)
             _rootRigidbody.AddForce(Vector3.up * (pullUpForce / _activeHandCount));
-
-        // Carry physics for dynamic objects below carry-mass limit.
-        if (_grabbedRigidbody != null)
-            ApplyCarryForces();
-    }
-
-    void ApplyCarryForces()
-    {
-        if (_grabbedRigidbody.mass > maxCarryMass) return;
-
-        // Only compensate gravity when the player is actually lifting the object —
-        // i.e. the grab point is above the object's center of mass.
-        // When pushing a grounded object (cart, box on floor) the grab point sits
-        // at or below the center of mass, so skipping compensation lets gravity
-        // pin the object to the ground instead of fighting it and causing floating.
-        bool isLifting = _grabWorldPoint.y > _grabbedRigidbody.worldCenterOfMass.y;
-        if (!isLifting) return;
-
-        int   grabCount  = _grabbedObject != null ? Mathf.Max(1, _grabbedObject.GrabCount) : 1;
-        float shareRatio = 1f / grabCount;
-        Vector3 gravComp = Vector3.up * (-Physics.gravity.y * _grabbedRigidbody.mass * shareRatio);
-        _grabbedRigidbody.AddForce(gravComp);
     }
 
     bool IsOwnBody(Collider col)

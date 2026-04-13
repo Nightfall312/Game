@@ -27,6 +27,11 @@ public class ThirdPersonCamera : MonoBehaviour
     float targetDistance;
     float zoomVelocity;
 
+    // Smoothed pitch — gives a subtle weight to vertical camera movement without lagging yaw.
+    float _smoothedPitch = 20f;
+    float _pitchSmoothVel;
+    const float PitchSmoothTime = 0.05f;
+
     InputSystem_Actions inputActions;
 
     public void Initialize(InputSystem_Actions actions)
@@ -57,6 +62,9 @@ public class ThirdPersonCamera : MonoBehaviour
         pitch -= look.y * mouseSensitivity;
         pitch = Mathf.Clamp(pitch, minVerticalAngle, maxVerticalAngle);
 
+        // Smooth pitch only — yaw stays raw so horizontal turning is always instant and responsive.
+        _smoothedPitch = Mathf.SmoothDamp(_smoothedPitch, pitch, ref _pitchSmoothVel, PitchSmoothTime);
+
         if (Mouse.current != null)
         {
             float scroll = Mouse.current.scroll.ReadValue().y;
@@ -70,7 +78,7 @@ public class ThirdPersonCamera : MonoBehaviour
 
         distance = Mathf.SmoothDamp(distance, targetDistance, ref zoomVelocity, zoomSmoothTime);
 
-        Quaternion rotation = Quaternion.Euler(pitch, yaw, 0f);
+        Quaternion rotation = Quaternion.Euler(_smoothedPitch, yaw, 0f);
         Vector3 pivot = target.position + targetOffset;
         Vector3 direction = rotation * Vector3.back;
 
