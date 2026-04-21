@@ -1,3 +1,6 @@
+using System.Collections;
+using System.Collections.Generic;
+
 using UnityEngine;
 
 /// <summary>
@@ -41,13 +44,6 @@ public class HandGrabber : MonoBehaviour
     [Tooltip("Damper of the PD controller. Must be high enough to kill oscillation. " +
              "Rule of thumb: holdDamper >= 2 * sqrt(holdSpring * objectMass).")]
     [SerializeField] float holdDamper = 80f;
-    [Tooltip("Maximum acceleration (m/s²) the PD controller may impart to the held object. " +
-             "Mass-independent — prevents light objects from being launched. 40–80 is a good range.")]
-    [SerializeField] float holdMaxAcceleration = 60f;
-    [Tooltip("Max distance (m) the error vector is clamped to before computing spring force. " +
-             "Prevents the first-frame spike when the hand is far from the contact point.")]
-    [SerializeField] float holdMaxErrorDist = 0.25f;
-
     [Header("Climbing (SpringJoint on root for static/kinematic surfaces)")]
     [SerializeField] float climbSpring      = 1800f;
     [SerializeField] float climbDamper      = 120f;
@@ -75,8 +71,14 @@ public class HandGrabber : MonoBehaviour
     Rigidbody _rootRigidbody;
     Transform _selfRoot;
 
-    // Root-side spring joint (climbing static/kinematic surfaces only).
+    // Spring joint on the grabbed dynamic object, connected to world (no reaction on the arm).
+    SpringJoint _holdJoint;
+
+    // Root-side spring joint for climbing static/kinematic surfaces.
     SpringJoint _climbJoint;
+
+    // Collider pairs whose collision was suppressed at grab time — restored on release.
+    readonly List<(Collider, Collider)> _ignoredPairs = new List<(Collider, Collider)>();
 
     bool _isGrabbing;
 
@@ -166,7 +168,14 @@ public class HandGrabber : MonoBehaviour
         }
 
         // ── Teardown ──────────────────────────────────────────────────────────────
+        if (_holdJoint  != null) { Destroy(_holdJoint);  _holdJoint  = null; }
         if (_climbJoint != null) { Destroy(_climbJoint); _climbJoint = null; }
+
+        // Restore collision between the grabbed object and the player body.
+        foreach ((Collider a, Collider b) in _ignoredPairs)
+            if (a != null && b != null)
+                Physics.IgnoreCollision(a, b, false);
+        _ignoredPairs.Clear();
 
         _grabbedObject?.OnReleased();
         _grabbedObject    = null;
@@ -218,21 +227,50 @@ public class HandGrabber : MonoBehaviour
     }
 
     /// <summary>
-    /// Dynamic body — store the contact offset from the body's CoM in local space.
-    /// Storing from CoM (not from Transform origin) means the offset is stable as the
-    /// object rotates — the grab point tracks the intended surface spot correctly.
-    /// Every FixedUpdate a PD-controller force drives that point toward HandTipWorld().
-    /// No SpringJoint: avoids the mass-ratio problem where a light hand Rigidbody (0.1 kg)
-    /// would be yanked toward the object instead of the object moving to the hand.
+    /// Dynamic body — creates a SpringJoint on the grabbed object connected to world (null body).
+    /// World has infinite mass so there are zero reaction forces on the arm — the object is
+    /// pulled toward the hand tip without pushing the hand away. The joint solver handles the
+    /// constraint implicitly, so there is no discrete-time oscillation from manual AddForce.
+    /// Collision between the grabbed object and the player body is suppressed for the grab
+    /// duration to prevent a physics fight between the joint pull and the body pushing back.
     /// </summary>
     void AttachDynamic(Rigidbody hitRb, Collider col, Vector3 worldPoint)
     {
         _grabbedRigidbody = hitRb;
 
-        // Store the offset from CoM rather than from Transform.position so the grab
-        // point remains on the correct surface as the object rotates freely.
-        Vector3 comOffset = worldPoint - hitRb.worldCenterOfMass;
+        Vector3 comOffset   = worldPoint - hitRb.worldCenterOfMass;
         _grabLocalOnDynamic = hitRb.transform.InverseTransformVector(comOffset);
+
+        // Disable collision between the grabbed object and every player collider.
+        // Without this the object physically pushes the player while the spring
+        // simultaneously pulls it toward the hand — they fight and the object shakes.
+        _ignoredPairs.Clear();
+        if (_selfRoot != null)
+        {
+            Collider[] playerCols = _selfRoot.GetComponentsInChildren<Collider>(true);
+            Collider[] objCols    = hitRb.GetComponentsInChildren<Collider>(true);
+            foreach (Collider pc in playerCols)
+                foreach (Collider oc in objCols)
+                    if (pc != null && oc != null)
+                    {
+                        Physics.IgnoreCollision(pc, oc, true);
+                        _ignoredPairs.Add((pc, oc));
+                    }
+        }
+
+        // SpringJoint ON the grabbed object, connected to world (connectedBody = null).
+        // connectedAnchor is updated every FixedUpdate to follow HandTipWorld().
+        _holdJoint = hitRb.gameObject.AddComponent<SpringJoint>();
+        _holdJoint.autoConfigureConnectedAnchor = false;
+        _holdJoint.connectedBody   = null;
+        _holdJoint.anchor          = hitRb.transform.InverseTransformPoint(worldPoint);
+        _holdJoint.connectedAnchor = HandTipWorld();
+        _holdJoint.spring          = holdSpring;
+        _holdJoint.damper          = holdDamper;
+        _holdJoint.minDistance     = 0f;
+        _holdJoint.maxDistance     = 0f;
+        _holdJoint.tolerance       = 0.001f;
+        _holdJoint.enableCollision = false;
 
         _grabbedObject = col.GetComponentInParent<GrabbableObject>();
         _grabbedObject?.OnGrabbed();
@@ -298,19 +336,15 @@ public class HandGrabber : MonoBehaviour
     {
         if (_rootRigidbody == null) return;
 
-        // ── Dynamic object: PD-controller at the contact point ────────────────────
-        // Spring-damper force is applied directly to the grabbed Rigidbody — no SpringJoint.
-        // This is mass-independent: F = holdSpring * error + holdDamper * (-pointVelocity),
-        // plus a gravity compensation term so the object doesn't sag while held.
-        // Applied at the grab contact point (not CoM) so the object also rotates naturally.
+        // ── Dynamic object: SpringJoint drives the grab point toward the hand tip ───
+        // The joint is connected to world (null body) so there are no reaction forces
+        // on the arm — only the grabbed object accelerates. connectedAnchor is updated
+        // each tick to follow the hand tip, making the world anchor move with the hand.
         if (_grabbedRigidbody != null)
         {
-            // Reconstruct the grab point: CoM + the stored offset rotated into world space.
-            // Using CoM + rotated offset (not Transform.TransformPoint) is stable under rotation —
-            // the point tracks the correct surface spot even after the object spins.
             Vector3 grabWorld = _grabbedRigidbody.worldCenterOfMass
                               + _grabbedRigidbody.transform.TransformVector(_grabLocalOnDynamic);
-            _grabWorldPoint   = grabWorld;
+            _grabWorldPoint = grabWorld;
 
             if (shoulderPivot != null && Vector3.Distance(shoulderPivot.position, grabWorld) > maxArmReach)
             {
@@ -318,34 +352,19 @@ public class HandGrabber : MonoBehaviour
                 return;
             }
 
-            Vector3 target = HandTipWorld();
-            Vector3 error  = target - grabWorld;
+            // Move the world-space spring anchor to the current hand tip every tick.
+            if (_holdJoint != null)
+                _holdJoint.connectedAnchor = HandTipWorld();
 
-            // Soft-clamp error: use full error up to holdMaxErrorDist, then scale the excess
-            // so large gaps still pull the object but cannot fire a first-frame velocity spike.
-            float errorMag = error.magnitude;
-            if (errorMag > holdMaxErrorDist)
-                error = error / errorMag * (holdMaxErrorDist + (errorMag - holdMaxErrorDist) * 0.15f);
+            // Gravity compensation — offset default spring sag (mg/k downward at equilibrium).
+            _grabbedRigidbody.AddForce(-Physics.gravity * _grabbedRigidbody.mass, ForceMode.Force);
 
-            // Current velocity of the grab point (linear + angular contribution).
+            // Bleed angular velocity so spin asymmetries don't accumulate into oscillation.
+            _grabbedRigidbody.angularVelocity *= 0.85f;
+
             Vector3 r        = grabWorld - _grabbedRigidbody.worldCenterOfMass;
             Vector3 pointVel = _grabbedRigidbody.linearVelocity
                              + Vector3.Cross(_grabbedRigidbody.angularVelocity, r);
-
-            Vector3 springForce = error     * holdSpring;
-            Vector3 dampForce   = -pointVel * holdDamper;
-            Vector3 gravComp    = -Physics.gravity * _grabbedRigidbody.mass;
-
-            // Clamp by acceleration (mass-independent) so the cap works correctly for any
-            // prop weight — 1000 N is fine for a 50 kg crate but catastrophic for a 0.5 kg tool.
-            float   maxForce   = holdMaxAcceleration * _grabbedRigidbody.mass;
-            Vector3 totalForce = springForce + dampForce + gravComp;
-            if (totalForce.magnitude > maxForce)
-                totalForce = totalForce.normalized * maxForce;
-
-            _grabbedRigidbody.AddForceAtPosition(totalForce, grabWorld, ForceMode.Force);
-
-            // Drag: spinning object pulls the player along.
             InjectDragVelocity(pointVel);
         }
 
