@@ -7,7 +7,7 @@ public class ThirdPersonCamera : MonoBehaviour
 
     [Header("Orbit Settings")]
     [SerializeField] float distance = 4f;
-    [SerializeField] float mouseSensitivity = 0.15f;
+    [SerializeField] float mouseSensitivity = 0.25f;   // increased from 0.15 — feels correct in builds
     [SerializeField] float minVerticalAngle = -20f;
     [SerializeField] float maxVerticalAngle = 60f;
     [SerializeField] Vector3 targetOffset = new Vector3(0f, 0.8f, 0f);
@@ -15,7 +15,7 @@ public class ThirdPersonCamera : MonoBehaviour
     [Header("Zoom Settings")]
     [SerializeField] float zoomSpeed = 0.2f;
     [SerializeField] float minDistance = 1.5f;
-    [SerializeField] float maxDistance = 5f;
+    [SerializeField] float maxDistance = 3f;
     [SerializeField] float zoomSmoothTime = 0.15f;
 
     [Header("Collision")]
@@ -42,52 +42,48 @@ public class ThirdPersonCamera : MonoBehaviour
         targetDistance = Mathf.Clamp(distance, minDistance, maxDistance);
     }
 
+    // Mouse delta accumulated by NetworkPlayer.Update() and handed to the camera each frame.
+    // This ensures only one consumer reads Mouse.current.delta — no more double-drain.
+    Vector2 _pendingDelta;
+
+    /// <summary>Called by NetworkPlayer.Update() to feed this frame's mouse delta.</summary>
+    public void FeedMouseDelta(Vector2 delta) => _pendingDelta += delta;
+
     void LateUpdate()
     {
         if (inputActions == null || target == null)
-        {
             return;
-        }
 
-        Vector2 look = Vector2.zero;
+        // Use the delta fed by NetworkPlayer (already read from Mouse.current.delta this frame).
+        // Do NOT call Mouse.current.delta.ReadValue() here — NetworkPlayer already consumed it.
+        Vector2 look = PauseMenuManager.IsPaused ? Vector2.zero : _pendingDelta;
+        _pendingDelta = Vector2.zero;
 
-        // Read mouse delta whenever the game is not paused — don't gate on cursor lock state
-        // because the cursor may momentarily unlock after a grab/drop, which would freeze camera rotation.
-        if (!PauseMenuManager.IsPaused && Mouse.current != null)
-        {
-            look = Mouse.current.delta.ReadValue();
-        }
-
-        yaw += look.x * mouseSensitivity;
+        yaw   += look.x * mouseSensitivity;
         pitch -= look.y * mouseSensitivity;
-        pitch = Mathf.Clamp(pitch, minVerticalAngle, maxVerticalAngle);
+        pitch  = Mathf.Clamp(pitch, minVerticalAngle, maxVerticalAngle);
 
-        // Smooth pitch only — yaw stays raw so horizontal turning is always instant and responsive.
         _smoothedPitch = Mathf.SmoothDamp(_smoothedPitch, pitch, ref _pitchSmoothVel, PitchSmoothTime);
 
         if (Mouse.current != null)
         {
             float scroll = Mouse.current.scroll.ReadValue().y;
-
             if (scroll != 0f)
             {
                 targetDistance -= Mathf.Sign(scroll) * zoomSpeed;
-                targetDistance = Mathf.Clamp(targetDistance, minDistance, maxDistance);
+                targetDistance  = Mathf.Clamp(targetDistance, minDistance, maxDistance);
             }
         }
 
         distance = Mathf.SmoothDamp(distance, targetDistance, ref zoomVelocity, zoomSmoothTime);
 
         Quaternion rotation = Quaternion.Euler(_smoothedPitch, yaw, 0f);
-        Vector3 pivot = target.position + targetOffset;
-        Vector3 direction = rotation * Vector3.back;
+        Vector3 pivot       = target.position + targetOffset;
+        Vector3 direction   = rotation * Vector3.back;
 
         float actualDist = distance;
-
         if (Physics.SphereCast(pivot, collisionRadius, direction, out RaycastHit hit, distance, collisionMask))
-        {
             actualDist = Mathf.Max(hit.distance - collisionRadius, 0.5f);
-        }
 
         transform.position = pivot + direction * actualDist;
         transform.rotation = rotation;

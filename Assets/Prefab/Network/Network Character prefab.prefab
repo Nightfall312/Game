@@ -18,6 +18,7 @@ GameObject:
   - component: {fileID: 4049663247271412612}
   - component: {fileID: 1801859087222961341}
   - component: {fileID: 7654423142113718233}
+  - component: {fileID: 5062745584827960595}
   m_Layer: 0
   m_Name: Network Character prefab
   m_TagString: Untagged
@@ -232,6 +233,7 @@ MonoBehaviour:
   leftArmController: {fileID: 7782942084616713274}
   rightArmController: {fileID: 4097129468070796743}
   playerBend: {fileID: 7654423142113718233}
+  ragdollController: {fileID: 0}
 --- !u!114 &831954184173556811
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -304,6 +306,26 @@ MonoBehaviour:
   spineSync: {fileID: 1560199147741605494}
   bendAngleDegrees: 55
   bendSmoothing: 8
+--- !u!114 &5062745584827960595
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 499166073464393770}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 54fb9dd954f4c8d40a1fa1c76c4a810a, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::RagdollController
+  ragdollDuration: 1.4
+  getUpDuration: 0.9
+  impactThreshold: 4
+  rootRb: {fileID: 0}
+  mainJoint: {fileID: 0}
+  characterAnimator: {fileID: 0}
+  getUpTrigger: GetUp
+  isRagdollParam: IsRagdoll
 --- !u!1 &2829272713993188068
 GameObject:
   m_ObjectHideFlags: 0
@@ -336,6 +358,68 @@ Transform:
   - {fileID: 1271939361443753205}
   - {fileID: 3638925622700975764}
   m_Father: {fileID: 8602794271817614757}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!1 &4725481254362859520
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 3123621638012214498}
+  m_Layer: 0
+  m_Name: RightHandTip
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &3123621638012214498
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 4725481254362859520}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0.11, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 2675857731116575353}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!1 &8983500938389019218
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1164048901111106832}
+  m_Layer: 0
+  m_Name: LeftHandTip
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &1164048901111106832
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8983500938389019218}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0.11, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 2612011259513915461}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1001 &1597774431420959518
 PrefabInstance:
@@ -485,7 +569,13 @@ PrefabInstance:
     - {fileID: 5866666021909216657, guid: 41ce9191f95452c489489235bfe823a7, type: 3}
     m_RemovedGameObjects:
     - {fileID: -8391193718175552794, guid: 41ce9191f95452c489489235bfe823a7, type: 3}
-    m_AddedGameObjects: []
+    m_AddedGameObjects:
+    - targetCorrespondingSourceObject: {fileID: 3608461954653979483, guid: 41ce9191f95452c489489235bfe823a7, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 1164048901111106832}
+    - targetCorrespondingSourceObject: {fileID: -5544246647096876697, guid: 41ce9191f95452c489489235bfe823a7, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 3123621638012214498}
     m_AddedComponents:
     - targetCorrespondingSourceObject: {fileID: 6165486582592266057, guid: 41ce9191f95452c489489235bfe823a7, type: 3}
       insertIndex: -1
@@ -1363,6 +1453,16 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::SyncPhysicsObject
   animatedRigidbody3D: {fileID: 2395249954350695545}
   syncAnimation: 1
+--- !u!4 &2612011259513915461 stripped
+Transform:
+  m_CorrespondingSourceObject: {fileID: 3608461954653979483, guid: 41ce9191f95452c489489235bfe823a7, type: 3}
+  m_PrefabInstance: {fileID: 1597774431420959518}
+  m_PrefabAsset: {fileID: 0}
+--- !u!4 &2675857731116575353 stripped
+Transform:
+  m_CorrespondingSourceObject: {fileID: -5544246647096876697, guid: 41ce9191f95452c489489235bfe823a7, type: 3}
+  m_PrefabInstance: {fileID: 1597774431420959518}
+  m_PrefabAsset: {fileID: 0}
 --- !u!4 &2814886008803215455 stripped
 Transform:
   m_CorrespondingSourceObject: {fileID: 3547733182786995009, guid: 41ce9191f95452c489489235bfe823a7, type: 3}
@@ -1550,14 +1650,15 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::HandGrabber
   handRigidbody: {fileID: 2478756589938144570}
-  handTip: {fileID: 0}
-  grabRadius: 0.12
+  handTip: {fileID: 1164048901111106832}
+  grabRadius: 0.07
   grabMask:
     serializedVersion: 2
     m_Bits: 4294967295
   grabSpring: 1400
   grabDamper: 90
   grabTolerance: 0.01
+  grabMaxDistance: 0
   pullUpForce: 20
   pullUpHeightOffset: 0.1
   releaseImpulse: 0.5
@@ -2092,14 +2193,15 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::HandGrabber
   handRigidbody: {fileID: 2489230919498927441}
-  handTip: {fileID: 0}
-  grabRadius: 0.12
+  handTip: {fileID: 3123621638012214498}
+  grabRadius: 0.07
   grabMask:
     serializedVersion: 2
     m_Bits: 4294967295
   grabSpring: 1400
   grabDamper: 90
   grabTolerance: 0.01
+  grabMaxDistance: 0
   pullUpForce: 20
   pullUpHeightOffset: 0.1
   releaseImpulse: 0.5

@@ -30,16 +30,21 @@ public class NetworkPlayer : NetworkBehaviour, IPlayerLeft
     [Header("Bend")]
     [SerializeField] PlayerBend playerBend;
 
-    Vector2 moveInputVector = Vector2.zero;
+    [Header("Ragdoll")]
+    [SerializeField] RagdollController ragdollController;
+
+    Vector2 moveInputVector  = Vector2.zero;
     bool isJumpButtonPressed = false;
-    bool isBendPressed = false;
+    bool isBendPressed       = false;
 
     // Accumulated raw mouse delta between Update ticks, consumed in GetNetworkInput.
     Vector2 _accumulatedMouseDelta = Vector2.zero;
 
-    // Last received input — used to keep movement alive on ticks where GetInput returns false
-    // (e.g. during Fusion resimulation steps triggered by grab/drop physics events).
+    // Last received input — used to keep movement alive on ticks where GetInput returns false.
     NetworkInputData _lastInput;
+
+    // Previous physics velocity — unused, kept as placeholder.
+    Vector3 _prevVelocity;
 
     const float defaultMaxSpeed        = 3f;
     const float backwardInputThreshold = 0.1f;
@@ -57,9 +62,8 @@ public class NetworkPlayer : NetworkBehaviour, IPlayerLeft
     protected float _lastCameraYaw;
     float _lastCameraPitch;
 
-    // Smoothed body facing yaw — body turns slightly behind the camera for HFF body-lag feel.
+    // Smoothed body facing yaw.
     float _facingYaw;
-    float _facingYawVelocity;
 
     protected virtual float MaxMoveSpeed => defaultMaxSpeed;
     protected virtual float MoveForceMagnitude => 30f;
@@ -98,6 +102,9 @@ public class NetworkPlayer : NetworkBehaviour, IPlayerLeft
         {
             animator.applyRootMotion = false;
         }
+
+        if (ragdollController == null)
+            ragdollController = GetComponentInChildren<RagdollController>();
     }
 
     void OnEnable()
@@ -132,9 +139,6 @@ public class NetworkPlayer : NetworkBehaviour, IPlayerLeft
         if (Object == null || !Object.HasInputAuthority || inputActions == null)
             return;
 
-        // Keep the cursor locked every frame so the game view always has focus.
-        // Without this, Unity's editor only delivers keyboard input while the mouse is clicked inside the view.
-        // Re-lock unconditionally after any grab/drop action that may have released the cursor.
         if (!PauseMenuManager.IsPaused)
         {
             Cursor.lockState = CursorLockMode.Locked;
@@ -144,10 +148,16 @@ public class NetworkPlayer : NetworkBehaviour, IPlayerLeft
         moveInputVector = inputActions.Player.Move.ReadValue<Vector2>();
         isBendPressed   = Keyboard.current != null && Keyboard.current.leftCtrlKey.isPressed;
 
-        // Accumulate raw mouse delta every Update. Read unconditionally while not paused
-        // so a momentary cursor state change after a grab/drop never freezes the camera.
+        // Read mouse delta once per frame here. Feed it to the camera AND store it for
+        // the arm controller. This is the single point of consumption — ThirdPersonCamera
+        // no longer reads Mouse.current.delta itself, avoiding the double-drain bug that
+        // made both camera and arms feel sluggish on host and in builds.
         if (!PauseMenuManager.IsPaused && Mouse.current != null)
-            _accumulatedMouseDelta += Mouse.current.delta.ReadValue();
+        {
+            Vector2 delta = Mouse.current.delta.ReadValue();
+            _accumulatedMouseDelta += delta;
+            thirdPersonCamera?.FeedMouseDelta(delta);
+        }
     }
 
 
@@ -198,8 +208,9 @@ public class NetworkPlayer : NetworkBehaviour, IPlayerLeft
     }
 
     /// <summary>
-    /// Sets Rigidbody drag and joint damper for HFF-style weighted movement.
-    /// Override in subclasses (e.g. DrunkNetworkPlayer) to apply character-specific values.
+    /// Sets Rigidbody drag and the initial mainJoint noodle-balance drive.
+    /// RagdollController.ApplyUprightDrive() will overwrite the mainJoint drive at Awake,
+    /// so NetworkPlayer only needs to set Rigidbody damping here.
     /// </summary>
     protected virtual void ApplyBasePhysicsSettings()
     {
@@ -210,18 +221,8 @@ public class NetworkPlayer : NetworkBehaviour, IPlayerLeft
             // without hard constraints that cause physics launches.
             rigidbody3D.angularDamping = 12f;
         }
-
-        if (mainJoint != null)
-        {
-            // Slerp drive spring of 1200 is strong enough to keep the body upright
-            // while the angular axes are Free (no hard Locked constraint). This is the
-            // HFF approach: soft spring resists tipping rather than a locked axis that
-            // fights the SpringJoint and causes the ragdoll to collapse.
-            JointDrive slerpDrive = mainJoint.slerpDrive;
-            slerpDrive.positionSpring = 1200f;
-            slerpDrive.positionDamper = 40f;
-            mainJoint.slerpDrive = slerpDrive;
-        }
+        // mainJoint drive is now fully owned by RagdollController (uprightSpring / uprightDamper).
+        // NetworkPlayer writes GetScaledMainDrive(MuscleStrength) every fixed tick instead.
     }
 
     /// <summary>Wires up arm controllers, grabbers, and the network sync component after spawning.</summary>
@@ -233,6 +234,7 @@ public class NetworkPlayer : NetworkBehaviour, IPlayerLeft
 
         leftHandGrabber?.Initialize(rigidbody3D);
         rightHandGrabber?.Initialize(rigidbody3D);
+
         grabSync?.Initialize(leftHandGrabber, rightHandGrabber);
     }
 
@@ -259,11 +261,15 @@ public class NetworkPlayer : NetworkBehaviour, IPlayerLeft
         }
         else
         {
-            // Not state authority — run animator from estimated velocity, no forces.
-            Vector3 estimatedVelocity = transform.InverseTransformDirection(
-                (transform.position - _lastPosition) / Mathf.Max(Time.fixedDeltaTime, 0.0001f));
+            // Not state authority (simulated proxy on client) — drive animator from the
+            // networked velocity that the server syncs every tick. Using transform.position
+            // delta is wrong here because the client position is a visual Lerp and gives
+            // near-zero delta every fixed tick, making the animator always show idle.
+            Vector3 netVel = networkRigidbody3D != null
+                ? transform.InverseTransformDirection(networkRigidbody3D.NetVelocity)
+                : Vector3.zero;
 
-            UpdateAnimator(new Vector2(estimatedVelocity.x, estimatedVelocity.z));
+            UpdateAnimator(new Vector2(netVel.x, netVel.z));
             UpdateSyncPhysicsObjects();
             playerBend?.UpdateBend(false);
             return;
@@ -287,21 +293,21 @@ public class NetworkPlayer : NetworkBehaviour, IPlayerLeft
             if (networkInputData.isLeftGrabHeld)
             {
                 if (networkInputData.leftTargetValid)
-                {
                     leftArmController?.SetHandTarget(networkInputData.leftHandTarget);
-                }
 
-                // If the hand is already grabbing, override the arm target to the actual
-                // grab contact point so the arm drives TOWARD the grab instead of fighting it.
-                if (leftHandGrabber != null && leftHandGrabber.IsGrabbing)
-                    leftArmController?.OverrideHandTargetToGrabPoint(leftHandGrabber.GrabPoint);
-
+                // While holding a dynamic object the arm drives toward the mouse-controlled
+                // target (soft spring). The PD controller in HandGrabber pulls the object
+                // toward the hand — NOT the other way around. Overriding the arm target to
+                // the grab point creates a feedback loop: arm chases object, object chases
+                // arm, they oscillate. SetGrabMode softens the joint so it yields naturally.
+                leftArmController?.SetGrabMode(leftHandGrabber != null && leftHandGrabber.IsGrabbing);
                 leftArmController?.UpdateArm();
                 leftHandGrabber?.TryGrabOrHold();
             }
             else
             {
                 leftHandGrabber?.Release();
+                leftArmController?.SetGrabMode(false);
                 leftArmController?.DriveToRest();
             }
 
@@ -309,46 +315,30 @@ public class NetworkPlayer : NetworkBehaviour, IPlayerLeft
             if (networkInputData.isRightGrabHeld)
             {
                 if (networkInputData.rightTargetValid)
-                {
                     rightArmController?.SetHandTarget(networkInputData.rightHandTarget);
-                }
 
-                // If the hand is already grabbing, override the arm target to the actual
-                // grab contact point so the arm drives TOWARD the grab instead of fighting it.
-                if (rightHandGrabber != null && rightHandGrabber.IsGrabbing)
-                    rightArmController?.OverrideHandTargetToGrabPoint(rightHandGrabber.GrabPoint);
-
+                rightArmController?.SetGrabMode(rightHandGrabber != null && rightHandGrabber.IsGrabbing);
                 rightArmController?.UpdateArm();
                 rightHandGrabber?.TryGrabOrHold();
             }
             else
             {
                 rightHandGrabber?.Release();
+                rightArmController?.SetGrabMode(false);
                 rightArmController?.DriveToRest();
             }
 
             // ── Upright stabilization while grabbing ──────────────────────────────────
-            // Since angular axes are now Free (not Locked), the slerp drive and angular
-            // damping must do all the stabilisation work. While grabbing, aggressively
-            // bleed pitch/roll angular velocity every tick so the body self-rights even
-            // when the SpringJoint is pulling hard — matching HFF's feel.
             bool anyGrabbing = (leftHandGrabber  != null && leftHandGrabber.IsGrabbing)
                             || (rightHandGrabber != null && rightHandGrabber.IsGrabbing);
 
             if (anyGrabbing && rigidbody3D != null)
             {
+                // Only damp spin (roll/pitch angular velocity) to stop the body tumbling.
+                // Do NOT apply a corrective upright torque here — the body should be free
+                // to tilt and swing with the obstacle, not fight toward world-up.
                 Vector3 av = rigidbody3D.angularVelocity;
-                // Damp pitch (X) and roll (Z) very aggressively while hanging/grabbing.
-                // Leave yaw (Y) relatively free so the player can still swing/turn.
-                rigidbody3D.angularVelocity = new Vector3(av.x * 0.3f, av.y * 0.85f, av.z * 0.3f);
-
-                // Additionally apply a corrective torque toward world-upright to counteract
-                // the grab spring pulling the root sideways. This is the equivalent of
-                // HFF's pelvis upright constraint — a torque, not a hard lock.
-                Vector3 bodyUp   = rigidbody3D.transform.up;
-                Vector3 corrAxis = Vector3.Cross(bodyUp, Vector3.up);
-                if (corrAxis.sqrMagnitude > 0.0001f)
-                    rigidbody3D.AddTorque(corrAxis * 120f, ForceMode.Acceleration);
+                rigidbody3D.angularVelocity = new Vector3(av.x * 0.4f, av.y * 0.85f, av.z * 0.4f);
             }
             else if (!anyGrabbing && rigidbody3D != null)
             {
@@ -356,9 +346,9 @@ public class NetworkPlayer : NetworkBehaviour, IPlayerLeft
             }
 
 
-            // Smoothly rotate the body to face the camera — gives HFF-style body lag on turns.
-            _facingYaw = Mathf.SmoothDampAngle(
-                _facingYaw, _lastCameraYaw, ref _facingYawVelocity, 0.1f);
+            // Body yaw tracks the camera directly — the mainJoint slerp drive spring
+            // is the sole source of lag, giving the HFF body-lag feel without double-smoothing.
+            _facingYaw = _lastCameraYaw;
 
             // Lean body into the movement direction: forward when walking, back when reversing.
             float forwardLean   = -networkInputData.movementInput.y * 12f;
@@ -373,6 +363,18 @@ public class NetworkPlayer : NetworkBehaviour, IPlayerLeft
 
             if (mainJoint != null)
             {
+                // ── Pillar 1+2: Noodle balance + dynamic strength scaling ─────────────
+                // Write the scaled slerp drive so the upright torque weakens as the body
+                // moves faster — at high speed the character goes partially limp and
+                // inertia takes over, just like HFF. RagdollController owns the base
+                // spring values; MuscleStrength is the per-tick scale factor.
+                float muscleStrength = ragdollController != null
+                    ? ragdollController.MuscleStrength
+                    : 1f;
+                mainJoint.slerpDrive = ragdollController != null
+                    ? ragdollController.GetScaledMainDrive(muscleStrength)
+                    : mainJoint.slerpDrive;
+
                 ConfigurableJointExtensions.SetTargetRotationLocal(
                     mainJoint, bodyRot, _jointStartRotation);
             }
@@ -411,10 +413,11 @@ public class NetworkPlayer : NetworkBehaviour, IPlayerLeft
             return;
         }
 
-        Vector3 localVelocity = transform.InverseTransformDirection(
-            (transform.position - _lastPosition) / Mathf.Max(Time.fixedDeltaTime, 0.0001f));
+        Vector3 netVelBottom = networkRigidbody3D != null
+            ? transform.InverseTransformDirection(networkRigidbody3D.NetVelocity)
+            : Vector3.zero;
 
-        UpdateAnimator(new Vector2(localVelocity.x, localVelocity.z));
+        UpdateAnimator(new Vector2(netVelBottom.x, netVelBottom.z));
         UpdateSyncPhysicsObjects();
         playerBend?.UpdateBend(false);
     }
@@ -501,11 +504,19 @@ public class NetworkPlayer : NetworkBehaviour, IPlayerLeft
             break;
         }
 
+        bool anyGrabbing = (leftHandGrabber  != null && leftHandGrabber.IsGrabbing)
+                        || (rightHandGrabber != null && rightHandGrabber.IsGrabbing);
+
         if (!isGrounded)
         {
-            // Heavier fall gravity — HFF characters drop fast and feel weighty in the air.
             _groundNormal = Vector3.up;
-            rigidbody3D.AddForce(Vector3.down * 35f);
+
+            // While grabbed, suppress the extra downward gravity so the body can be
+            // freely carried by the moving obstacle's velocity injection and the
+            // SpringJoint. Without this the 35 N/kg downforce fights every upward or
+            // sideward pull and the body barely moves with the obstacle.
+            if (!anyGrabbing)
+                rigidbody3D.AddForce(Vector3.down * 35f);
         }
         else
         {
@@ -538,6 +549,19 @@ public class NetworkPlayer : NetworkBehaviour, IPlayerLeft
                 syncPhysicsObjects[i].UpdateJointFromAnimation();
             }
         }
+    }
+
+    void OnCollisionEnter(Collision collision)
+    {
+        // Impact detection retained for future use — ragdoll triggering removed.
+    }
+
+    /// <summary>
+    /// Called by WeaponHit when a tool strikes this player.
+    /// </summary>
+    public void TriggerRagdollFromHit()
+    {
+        // Ragdoll on hit disabled.
     }
 
     public void PlayerLeft(PlayerRef player)

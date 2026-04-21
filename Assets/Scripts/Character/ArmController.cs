@@ -181,16 +181,45 @@ public class ArmController : MonoBehaviour
                 forearmJoint, _forearmStartLocalRot, _forearmStartLocalRot);
     }
 
+    // ─── Grab mode joint drive caching ───────────────────────────────────────────
+    // While grabbing, the arm joints are softened so they conform to where the
+    // SpringJoint pulls instead of pushing back against the body with 2500N spring.
+    JointDrive _upperArmDefaultDrive;
+    JointDrive _forearmDefaultDrive;
+    bool       _drivesStored;
+
     /// <summary>
-    /// Call when grab starts/ends. Since the physics grab is now on the ROOT body (not the
-    /// arm chain), we keep the arm drives STRONG during grab so the arm holds its pose
-    /// toward the grab point and looks visually connected — not limp.
-    /// We only store/restore to keep the API compatible with call sites.
+    /// Call when grab starts: stores the default joint drives and replaces them with
+    /// soft passive drives so the arm hangs naturally from the SpringJoint instead of
+    /// fighting it — which would push the body flat through reaction forces.
     /// </summary>
     public void SetGrabMode(bool grabbing)
     {
-        // Arm drives stay at their configured values — no softening needed.
-        // The root body SpringJoint carries the physics; the arm is visual-only.
+        if (upperArmJoint == null) return;
+
+        if (grabbing && !_drivesStored)
+        {
+            _upperArmDefaultDrive = upperArmJoint.slerpDrive;
+            _forearmDefaultDrive  = forearmJoint != null ? forearmJoint.slerpDrive : default;
+            _drivesStored         = true;
+
+            // Soft drive: arm can move freely, just with light damping — no spring force
+            // pushing back against the SpringJoint or the body.
+            JointDrive softDrive = new JointDrive
+            {
+                positionSpring = 80f,
+                positionDamper = 10f,
+                maximumForce   = float.MaxValue
+            };
+            upperArmJoint.slerpDrive = softDrive;
+            if (forearmJoint != null) forearmJoint.slerpDrive = softDrive;
+        }
+        else if (!grabbing && _drivesStored)
+        {
+            upperArmJoint.slerpDrive = _upperArmDefaultDrive;
+            if (forearmJoint != null) forearmJoint.slerpDrive = _forearmDefaultDrive;
+            _drivesStored = false;
+        }
     }
 
     /// <summary>
