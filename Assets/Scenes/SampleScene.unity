@@ -8230,9 +8230,6 @@ PrefabInstance:
       addedObject: {fileID: 792900348}
     - targetCorrespondingSourceObject: {fileID: 1233348996758608904, guid: 91be126a3d2878b4ca3afaaa6a5715fb, type: 3}
       insertIndex: -1
-      addedObject: {fileID: 792900347}
-    - targetCorrespondingSourceObject: {fileID: 1233348996758608904, guid: 91be126a3d2878b4ca3afaaa6a5715fb, type: 3}
-      insertIndex: -1
       addedObject: {fileID: 792900350}
   m_SourcePrefab: {fileID: 100100000, guid: 91be126a3d2878b4ca3afaaa6a5715fb, type: 3}
 --- !u!1 &792900345 stripped
@@ -8262,30 +8259,6 @@ MeshCollider:
   m_Convex: 1
   m_CookingOptions: 30
   m_Mesh: {fileID: 2579094671004953025, guid: 292f70aec9679aa44be47c136bcd4cd4, type: 3}
---- !u!114 &792900347
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 792900345}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 730cc299d9174154785f317b71d51bff, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::WeaponHit
-  _runner: {fileID: 0}
-  _object: {fileID: 0}
-  InvokeRpc: 0
-  ObjectIndex: 0
-  WordOffset: 0
-  WordCount: 0
-  DefaultReplicated: 1
-  knockbackForce: 8
-  minVelocityToHit: 2
-  hitCooldown: 0.5
-  _rigidbody: {fileID: 0}
-  _lastHitTime: -999
 --- !u!114 &792900348
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -11216,9 +11189,6 @@ PrefabInstance:
       addedObject: {fileID: 1107162799}
     - targetCorrespondingSourceObject: {fileID: 6869967935285504989, guid: 0ec5098589ea9324086baaaf68745fa7, type: 3}
       insertIndex: -1
-      addedObject: {fileID: 1107162798}
-    - targetCorrespondingSourceObject: {fileID: 6869967935285504989, guid: 0ec5098589ea9324086baaaf68745fa7, type: 3}
-      insertIndex: -1
       addedObject: {fileID: 1107162801}
   m_SourcePrefab: {fileID: 100100000, guid: 0ec5098589ea9324086baaaf68745fa7, type: 3}
 --- !u!1 &1107162796 stripped
@@ -11248,30 +11218,6 @@ MeshCollider:
   m_Convex: 1
   m_CookingOptions: 30
   m_Mesh: {fileID: 2579094671004953025, guid: 292f70aec9679aa44be47c136bcd4cd4, type: 3}
---- !u!114 &1107162798
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1107162796}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 730cc299d9174154785f317b71d51bff, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::WeaponHit
-  _runner: {fileID: 0}
-  _object: {fileID: 0}
-  InvokeRpc: 0
-  ObjectIndex: 0
-  WordOffset: 0
-  WordCount: 0
-  DefaultReplicated: 1
-  knockbackForce: 8
-  minVelocityToHit: 2
-  hitCooldown: 0.5
-  _rigidbody: {fileID: 0}
-  _lastHitTime: -999
 --- !u!114 &1107162799
 MonoBehaviour:
   m_ObjectHideFlags: 0

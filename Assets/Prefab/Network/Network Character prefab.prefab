@@ -318,14 +318,14 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 54fb9dd954f4c8d40a1fa1c76c4a810a, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::RagdollController
-  ragdollDuration: 1.4
-  getUpDuration: 0.9
-  impactThreshold: 4
+  uprightSpring: 700
+  uprightDamper: 35
+  velocityLimpThreshold: 4
+  velocityFullLimpSpeed: 9
+  minMuscleStrength: 0.08
+  muscleScaleSmoothing: 6
   rootRb: {fileID: 0}
   mainJoint: {fileID: 0}
-  characterAnimator: {fileID: 0}
-  getUpTrigger: GetUp
-  isRagdollParam: IsRagdoll
 --- !u!1 &2829272713993188068
 GameObject:
   m_ObjectHideFlags: 0
@@ -1655,13 +1655,22 @@ MonoBehaviour:
   grabMask:
     serializedVersion: 2
     m_Bits: 4294967295
-  grabSpring: 1400
-  grabDamper: 90
-  grabTolerance: 0.01
-  grabMaxDistance: 0
+  holdSpring: 400
+  holdDamper: 80
+  climbSpring: 1800
+  climbDamper: 120
+  climbTolerance: 0.01
+  climbMaxDistance: 0
   pullUpForce: 20
   pullUpHeightOffset: 0.1
-  releaseImpulse: 0.5
+  continuousDragFraction: 0.18
+  maxDragSpeed: 8
+  releaseImpulseScale: 1.4
+  ragdollFlingThreshold: 4.5
+  armColliders:
+  - {fileID: 2322703410154267863}
+  - {fileID: 12798912535338759}
+  - {fileID: 6743618016287672438}
   shoulderPivot: {fileID: 0}
   maxArmReach: 0.65
 --- !u!4 &4127614009640688534 stripped
@@ -2198,13 +2207,22 @@ MonoBehaviour:
   grabMask:
     serializedVersion: 2
     m_Bits: 4294967295
-  grabSpring: 1400
-  grabDamper: 90
-  grabTolerance: 0.01
-  grabMaxDistance: 0
+  holdSpring: 400
+  holdDamper: 80
+  climbSpring: 1800
+  climbDamper: 120
+  climbTolerance: 0.01
+  climbMaxDistance: 0
   pullUpForce: 20
   pullUpHeightOffset: 0.1
-  releaseImpulse: 0.5
+  continuousDragFraction: 0.18
+  maxDragSpeed: 8
+  releaseImpulseScale: 1.4
+  ragdollFlingThreshold: 4.5
+  armColliders:
+  - {fileID: 1206305265060249304}
+  - {fileID: 1322069657118508560}
+  - {fileID: 5489114760465617307}
   shoulderPivot: {fileID: 0}
   maxArmReach: 0.65
 --- !u!1 &6729252641089691798 stripped

@@ -62,7 +62,10 @@ public class HandGrabber : MonoBehaviour
     [SerializeField] float releaseImpulseScale   = 1.4f;
     [SerializeField] float ragdollFlingThreshold = 4.5f;
 
-    [Header("Arm reach guard")]
+    [Header("Arm bones to ignore collision with during grab")]
+    [Tooltip("Assign the hand and forearm colliders of this grabber's arm. " +
+             "Only these are ignored — body/head/legs keep full collision with the held item.")]
+    [SerializeField] Collider[] armColliders = System.Array.Empty<Collider>();
     [SerializeField] Transform shoulderPivot;
     [SerializeField] float     maxArmReach = 0.9f;
 
@@ -241,22 +244,18 @@ public class HandGrabber : MonoBehaviour
         Vector3 comOffset   = worldPoint - hitRb.worldCenterOfMass;
         _grabLocalOnDynamic = hitRb.transform.InverseTransformVector(comOffset);
 
-        // Disable collision between the grabbed object and every player collider.
-        // Without this the object physically pushes the player while the spring
-        // simultaneously pulls it toward the hand — they fight and the object shakes.
+        // Disable collision only between the grabbed object and the arm colliders
+        // (hand + forearm bones that physically overlap the grab point).
+        // Body, head, and legs keep full collision so the item can't pass through the player.
         _ignoredPairs.Clear();
-        if (_selfRoot != null)
-        {
-            Collider[] playerCols = _selfRoot.GetComponentsInChildren<Collider>(true);
-            Collider[] objCols    = hitRb.GetComponentsInChildren<Collider>(true);
-            foreach (Collider pc in playerCols)
-                foreach (Collider oc in objCols)
-                    if (pc != null && oc != null)
-                    {
-                        Physics.IgnoreCollision(pc, oc, true);
-                        _ignoredPairs.Add((pc, oc));
-                    }
-        }
+        Collider[] objCols = hitRb.GetComponentsInChildren<Collider>(true);
+        foreach (Collider ac in armColliders)
+            foreach (Collider oc in objCols)
+                if (ac != null && oc != null)
+                {
+                    Physics.IgnoreCollision(ac, oc, true);
+                    _ignoredPairs.Add((ac, oc));
+                }
 
         // SpringJoint ON the grabbed object, connected to world (connectedBody = null).
         // connectedAnchor is updated every FixedUpdate to follow HandTipWorld().
@@ -361,11 +360,6 @@ public class HandGrabber : MonoBehaviour
 
             // Bleed angular velocity so spin asymmetries don't accumulate into oscillation.
             _grabbedRigidbody.angularVelocity *= 0.85f;
-
-            Vector3 r        = grabWorld - _grabbedRigidbody.worldCenterOfMass;
-            Vector3 pointVel = _grabbedRigidbody.linearVelocity
-                             + Vector3.Cross(_grabbedRigidbody.angularVelocity, r);
-            InjectDragVelocity(pointVel);
         }
 
         // ── Static / kinematic: update world connectedAnchor and sync root anchor ──
@@ -428,14 +422,30 @@ public class HandGrabber : MonoBehaviour
     void ApplyDragTo(Rigidbody rb, Vector3 target)
     {
         if (rb == null) return;
-        // Apply only the velocity delta needed to nudge toward target, never overshooting.
-        // We treat each axis independently so horizontal drag and vertical drag cap separately.
-        Vector3 current = rb.linearVelocity;
-        Vector3 delta   = target - current;
 
-        // Only inject if the delta meaningfully closes the gap (avoids jitter at rest).
-        if (delta.sqrMagnitude > 0.001f)
-            rb.AddForce(delta, ForceMode.VelocityChange);
+        // Only drag the player in directions where the held object is moving FASTER
+        // than the player. Never apply drag that reduces player velocity — that would
+        // fight the player's own movement and make locomotion feel impossibly heavy
+        // when holding a stationary or slow-moving object.
+        Vector3 current = rb.linearVelocity;
+
+        float cx = ApplyDragAxis(current.x, target.x);
+        float cy = ApplyDragAxis(current.y, target.y);
+        float cz = ApplyDragAxis(current.z, target.z);
+
+        Vector3 clamped = new Vector3(cx, cy, cz);
+        if (clamped.sqrMagnitude > 0.001f)
+            rb.AddForce(clamped, ForceMode.VelocityChange);
+    }
+
+    // Returns the velocity delta to apply on a single axis.
+    // Only returns non-zero when the target is pulling the player further in the
+    // same direction it is already going (or starting to go) — never opposes motion.
+    static float ApplyDragAxis(float current, float targetVal)
+    {
+        if (targetVal > 0f && current < targetVal) return targetVal - current;
+        if (targetVal < 0f && current > targetVal) return targetVal - current;
+        return 0f;
     }
 
     /// <summary>
