@@ -7,8 +7,16 @@ public class Shooting : MonoBehaviour
     public Transform FirePosition;
     public float BulletSpeed = 20f;
     public float ShootInterval = 2f;
+    public GameObject BushParent;
 
+    private Collider[] _bushColliders;
     private Coroutine _shootRoutine;
+
+    private void Awake()
+    {
+        if (BushParent != null)
+            _bushColliders = BushParent.GetComponentsInChildren<Collider>(includeInactive: true);
+    }
 
     /// <summary>
     /// Starts the automatic shooting loop.
@@ -49,10 +57,18 @@ public class Shooting : MonoBehaviour
             rb.linearVelocity = -transform.forward * BulletSpeed;
         }
 
-        // Ignore collision between the ball and the cannon so it never gets stuck
+        Collider[] bulletColliders = bullet.GetComponents<Collider>();
+
+        // Cannonball ignores the cannon's own colliders
         foreach (Collider cannonCol in GetComponents<Collider>())
-            foreach (Collider ballCol in bullet.GetComponents<Collider>())
+            foreach (Collider ballCol in bulletColliders)
                 Physics.IgnoreCollision(cannonCol, ballCol);
+
+        // Cannonball passes through all bush colliders
+        if (_bushColliders != null)
+            foreach (Collider bushCol in _bushColliders)
+                foreach (Collider ballCol in bulletColliders)
+                    Physics.IgnoreCollision(bushCol, ballCol);
     }
 
     private IEnumerator ShootRoutine()

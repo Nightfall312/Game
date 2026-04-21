@@ -1,6 +1,6 @@
 using UnityEngine;
 
-public class CannonTrigger : MonoBehaviour
+public class CannonTriggerOff : MonoBehaviour
 {
     public Shooting Cannon;
 
@@ -8,18 +8,18 @@ public class CannonTrigger : MonoBehaviour
 
     private void Awake()
     {
-        if (Cannon == null)
-            Cannon = GetComponent<Shooting>();
-
-        // Grab the root cannon and all children with Shooting components
         if (Cannon != null)
             _allCannons = Cannon.GetComponentsInChildren<Shooting>(includeInactive: true);
     }
 
+    /// <summary>
+    /// Stops all cannons when the Statue enters this zone.
+    /// </summary>
     private void OnTriggerEnter(Collider other)
     {
+        if (!other.CompareTag("Statue")) return;
         if (_allCannons == null) return;
         foreach (Shooting s in _allCannons)
-            s.StartShooting();
+            s.StopShooting();
     }
 }
