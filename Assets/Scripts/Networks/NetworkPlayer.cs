@@ -22,6 +22,7 @@ public class NetworkPlayer : NetworkBehaviour, IPlayerLeft
     [Header("Grab")]
     [SerializeField] protected HandGrabber leftHandGrabber;
     [SerializeField] protected HandGrabber rightHandGrabber;
+    [SerializeField] GrabIK grabIK;
 
     [Header("Arm controllers")]
     [SerializeField] protected ArmController leftArmController;
@@ -105,6 +106,9 @@ public class NetworkPlayer : NetworkBehaviour, IPlayerLeft
 
         if (ragdollController == null)
             ragdollController = GetComponentInChildren<RagdollController>();
+
+        if (grabIK == null)
+            grabIK = GetComponentInChildren<GrabIK>();
     }
 
     void OnEnable()
@@ -179,8 +183,23 @@ public class NetworkPlayer : NetworkBehaviour, IPlayerLeft
 
         if (!Object.HasInputAuthority)
         {
+            // Grabbers still need to be initialized on the state-authority (host) side so that
+            // when the host simulates a remote client's player, TryGrabOrHold / Release work
+            // correctly. Without this, _rootRigidbody is null on the host for client avatars
+            // and every grab attempt silently aborts at the null-guard in HandGrabber.
+            InitializeGrabbers();
+
+            // Disable hand IK on proxies — ArmController.ComputeHandTarget() is never called
+            // without a local camera, so HandTarget stays at shoulderPivot.forward * reach.
+            // Applying IK at full weight to that stale default raises both arms into a raised
+            // pose. The physics joints (synced by NetworkRigidbody3D) already reproduce the
+            // correct arm pose, so IK must step aside on non-local instances.
+            if (grabIK != null) grabIK.EnableIK = false;
             return;
         }
+
+        // Local player — IK is fully active.
+        if (grabIK != null) grabIK.EnableIK = true;
 
         Application.focusChanged += OnApplicationFocusChanged;
         Local = this;
@@ -236,6 +255,17 @@ public class NetworkPlayer : NetworkBehaviour, IPlayerLeft
         rightHandGrabber?.Initialize(rigidbody3D);
 
         grabSync?.Initialize(leftHandGrabber, rightHandGrabber);
+
+        // Register arm bone transforms so NetworkGrabSync can read physics-driven rotations
+        // from the host each tick and push them to clients in Render().
+        // Without this, arm bone Rigidbodies are kinematic on clients and never simulated,
+        // so the arms stay frozen at their spawn-time rotation on all non-host machines.
+        grabSync?.RegisterArmBones(
+            leftArmController?.UpperArmTransform,
+            leftArmController?.ForearmTransform,
+            rightArmController?.UpperArmTransform,
+            rightArmController?.ForearmTransform
+        );
     }
 
     public override void FixedUpdateNetwork()
@@ -261,15 +291,14 @@ public class NetworkPlayer : NetworkBehaviour, IPlayerLeft
         }
         else
         {
-            // Not state authority (simulated proxy on client) — drive animator from the
-            // networked velocity that the server syncs every tick. Using transform.position
-            // delta is wrong here because the client position is a visual Lerp and gives
-            // near-zero delta every fixed tick, making the animator always show idle.
-            Vector3 netVel = networkRigidbody3D != null
-                ? transform.InverseTransformDirection(networkRigidbody3D.NetVelocity)
-                : Vector3.zero;
+            // Proxy path — apply networked animator parameters so walk/idle animations play.
+            // Arm bone rotations are applied in NetworkGrabSync.Render() by writing directly
+            // to Transform.localRotation, which bypasses the kinematic Rigidbody correctly.
+            if (grabSync != null)
+            {
+                ApplyNetworkedAnimatorState(grabSync.NetMovementSpeed, grabSync.NetIsMovingBackward);
+            }
 
-            UpdateAnimator(new Vector2(netVel.x, netVel.z));
             UpdateSyncPhysicsObjects();
             playerBend?.UpdateBend(false);
             return;
@@ -295,14 +324,17 @@ public class NetworkPlayer : NetworkBehaviour, IPlayerLeft
                 if (networkInputData.leftTargetValid)
                     leftArmController?.SetHandTarget(networkInputData.leftHandTarget);
 
-                // While holding a dynamic object the arm drives toward the mouse-controlled
-                // target (soft spring). The PD controller in HandGrabber pulls the object
-                // toward the hand — NOT the other way around. Overriding the arm target to
-                // the grab point creates a feedback loop: arm chases object, object chases
-                // arm, they oscillate. SetGrabMode softens the joint so it yields naturally.
-                leftArmController?.SetGrabMode(leftHandGrabber != null && leftHandGrabber.IsGrabbing);
-                leftArmController?.UpdateArm();
-                leftHandGrabber?.TryGrabOrHold();
+                // Only drive the arm and attempt a grab when we have a valid target.
+                // Calling UpdateArm() with the stale default target (shoulderPivot.forward)
+                // drives the joint to the wrong pose on the first tick before the client
+                // has sent a valid leftHandTarget, raising the arm into a T-pose that then
+                // gets synced to all clients via the physics joint state.
+                if (networkInputData.leftTargetValid || (leftHandGrabber != null && leftHandGrabber.IsGrabbing))
+                {
+                    leftArmController?.SetGrabMode(leftHandGrabber != null && leftHandGrabber.IsGrabbing);
+                    leftArmController?.UpdateArm();
+                    leftHandGrabber?.TryGrabOrHold();
+                }
             }
             else
             {
@@ -317,9 +349,12 @@ public class NetworkPlayer : NetworkBehaviour, IPlayerLeft
                 if (networkInputData.rightTargetValid)
                     rightArmController?.SetHandTarget(networkInputData.rightHandTarget);
 
-                rightArmController?.SetGrabMode(rightHandGrabber != null && rightHandGrabber.IsGrabbing);
-                rightArmController?.UpdateArm();
-                rightHandGrabber?.TryGrabOrHold();
+                if (networkInputData.rightTargetValid || (rightHandGrabber != null && rightHandGrabber.IsGrabbing))
+                {
+                    rightArmController?.SetGrabMode(rightHandGrabber != null && rightHandGrabber.IsGrabbing);
+                    rightArmController?.UpdateArm();
+                    rightHandGrabber?.TryGrabOrHold();
+                }
             }
             else
             {
@@ -408,6 +443,9 @@ public class NetworkPlayer : NetworkBehaviour, IPlayerLeft
             }
 
             UpdateAnimator(networkInputData.movementInput);
+            grabSync?.SyncAnimatorState(networkInputData.movementInput.magnitude,
+                                        networkInputData.movementInput.y < -backwardInputThreshold);
+            grabSync?.SyncArmState(networkInputData);
             UpdateSyncPhysicsObjects();
             playerBend?.UpdateBend(networkInputData.isBendPressed);
             return;
@@ -417,7 +455,17 @@ public class NetworkPlayer : NetworkBehaviour, IPlayerLeft
             ? transform.InverseTransformDirection(networkRigidbody3D.NetVelocity)
             : Vector3.zero;
 
-        UpdateAnimator(new Vector2(netVelBottom.x, netVelBottom.z));
+        // This path is only reached by simulated proxies that fell through without HasStateAuthority.
+        // Arm bones are handled by NetworkGrabSync.Render() — no ArmController calls needed here.
+        if (grabSync != null)
+        {
+            ApplyNetworkedAnimatorState(grabSync.NetMovementSpeed, grabSync.NetIsMovingBackward);
+        }
+        else
+        {
+            UpdateAnimator(new Vector2(netVelBottom.x, netVelBottom.z));
+        }
+
         UpdateSyncPhysicsObjects();
         playerBend?.UpdateBend(false);
     }
@@ -533,6 +581,67 @@ public class NetworkPlayer : NetworkBehaviour, IPlayerLeft
 
         animator.SetFloat("movementSpeed", movementInput.magnitude);
         animator.SetBool("isMovingBackward", movementInput.y < -backwardInputThreshold);
+    }
+
+    /// <summary>
+    /// Applies pre-synced animator parameters from the server to the local Animator.
+    /// Used by simulated proxies so the host's animation state is replicated faithfully.
+    /// </summary>
+    protected void ApplyNetworkedAnimatorState(float speed, bool isMovingBackward)
+    {
+        if (animator == null) return;
+
+        animator.SetFloat("movementSpeed", speed);
+        animator.SetBool("isMovingBackward", isMovingBackward);
+    }
+
+    /// <summary>
+    /// Drives the arm controllers to the networked hand targets on proxy instances.
+    /// This reproduces the correct arm direction (matching the server's simulation) without
+    /// needing a local camera. ArmController.UpdateArm() is also called so the physics joint
+    /// target is updated and the arm doesn't stay locked in the rest pose.
+    /// </summary>
+    protected void ApplyNetworkedArmState(NetworkGrabSync sync)
+    {
+        if (sync.NetLeftTargetValid)
+        {
+            leftArmController?.SetHandTarget(sync.NetLeftHandTarget);
+            if (sync.NetIsLeftGrabHeld)
+            {
+                leftArmController?.SetGrabMode(sync.IsLeftGrabbing);
+                leftArmController?.UpdateArm();
+            }
+            else
+            {
+                leftArmController?.SetGrabMode(false);
+                leftArmController?.DriveToRest();
+            }
+        }
+        else
+        {
+            leftArmController?.SetGrabMode(false);
+            leftArmController?.DriveToRest();
+        }
+
+        if (sync.NetRightTargetValid)
+        {
+            rightArmController?.SetHandTarget(sync.NetRightHandTarget);
+            if (sync.NetIsRightGrabHeld)
+            {
+                rightArmController?.SetGrabMode(sync.IsRightGrabbing);
+                rightArmController?.UpdateArm();
+            }
+            else
+            {
+                rightArmController?.SetGrabMode(false);
+                rightArmController?.DriveToRest();
+            }
+        }
+        else
+        {
+            rightArmController?.SetGrabMode(false);
+            rightArmController?.DriveToRest();
+        }
     }
 
     protected void UpdateSyncPhysicsObjects()

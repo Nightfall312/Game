@@ -44,6 +44,9 @@ public class HandGrabber : MonoBehaviour
     [Tooltip("Damper of the PD controller. Must be high enough to kill oscillation. " +
              "Rule of thumb: holdDamper >= 2 * sqrt(holdSpring * objectMass).")]
     [SerializeField] float holdDamper = 80f;
+    [Tooltip("Maximum mass (kg) the player can fully lift against gravity. Objects heavier than " +
+             "this feel progressively heavier and resist being raised — statues stay grounded.")]
+    [SerializeField] float maxLiftableMass = 5f;
     [Header("Climbing (SpringJoint on root for static/kinematic surfaces)")]
     [SerializeField] float climbSpring      = 1800f;
     [SerializeField] float climbDamper      = 120f;
@@ -355,11 +358,20 @@ public class HandGrabber : MonoBehaviour
             if (_holdJoint != null)
                 _holdJoint.connectedAnchor = HandTipWorld();
 
-            // Gravity compensation — offset default spring sag (mg/k downward at equilibrium).
-            _grabbedRigidbody.AddForce(-Physics.gravity * _grabbedRigidbody.mass, ForceMode.Force);
+            // Partial gravity compensation — light objects (axe, hammer) feel lifted and responsive.
+            // Heavy objects (statue) still feel their full weight so they can't be levitated.
+            // The compensation fraction drops to zero at maxLiftableMass and beyond.
+            float mass             = _grabbedRigidbody.mass;
+            float compensateFrac   = Mathf.Clamp01(1f - (mass / maxLiftableMass));
+            float compensateForce  = mass * -Physics.gravity.y * compensateFrac;
+            _grabbedRigidbody.AddForce(Vector3.up * compensateForce, ForceMode.Force);
 
-            // Bleed angular velocity so spin asymmetries don't accumulate into oscillation.
-            _grabbedRigidbody.angularVelocity *= 0.85f;
+            // Bleed angular velocity to prevent spin oscillation on light, fast-moving objects.
+            // Heavy objects (mass > maxLiftableMass) get much less damping so they can tip,
+            // lean, and swing naturally under gravity instead of snapping to a frozen pose.
+            float angularBleed = Mathf.Lerp(0.70f, 0.96f,
+                Mathf.Clamp01(_grabbedRigidbody.mass / maxLiftableMass));
+            _grabbedRigidbody.angularVelocity *= angularBleed;
         }
 
         // ── Static / kinematic: update world connectedAnchor and sync root anchor ──

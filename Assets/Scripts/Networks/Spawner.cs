@@ -103,7 +103,7 @@ public class Spawner : SimulationBehaviour, INetworkRunnerCallbacks
         }
 
         _spawnedPlayers.Clear();
-        Utils.DebugLog($"OnShutdown: destroyed all player objects. Reason: {shutdownReason}");
+        Utils.DebugLog($"OnShutdown: Reason: {shutdownReason}");
     }
 
     public void OnUserSimulationMessage(NetworkRunner runner, SimulationMessagePtr message) { }

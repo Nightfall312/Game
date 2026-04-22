@@ -230,6 +230,7 @@ MonoBehaviour:
   animator: {fileID: 7232819787063459054}
   leftHandGrabber: {fileID: 6491804032878621232}
   rightHandGrabber: {fileID: 2912755923695263319}
+  grabIK: {fileID: 0}
   leftArmController: {fileID: 7782942084616713274}
   rightArmController: {fileID: 4097129468070796743}
   playerBend: {fileID: 7654423142113718233}
@@ -290,6 +291,23 @@ MonoBehaviour:
     _value: 0
   _LeftGrabPoint: {x: 0, y: 0, z: 0}
   _RightGrabPoint: {x: 0, y: 0, z: 0}
+  _NetMovementSpeed: 0
+  _NetIsMovingBackward:
+    _value: 0
+  _NetLeftHandTarget: {x: 0, y: 0, z: 0}
+  _NetRightHandTarget: {x: 0, y: 0, z: 0}
+  _NetLeftTargetValid:
+    _value: 0
+  _NetRightTargetValid:
+    _value: 0
+  _NetIsLeftGrabHeld:
+    _value: 0
+  _NetIsRightGrabHeld:
+    _value: 0
+  _NetLeftUpperArmRot: {x: 0, y: 0, z: 0, w: 0}
+  _NetLeftForearmRot: {x: 0, y: 0, z: 0, w: 0}
+  _NetRightUpperArmRot: {x: 0, y: 0, z: 0, w: 0}
+  _NetRightForearmRot: {x: 0, y: 0, z: 0, w: 0}
 --- !u!114 &7654423142113718233
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -1657,6 +1675,7 @@ MonoBehaviour:
     m_Bits: 4294967295
   holdSpring: 400
   holdDamper: 80
+  maxLiftableMass: 5
   climbSpring: 1800
   climbDamper: 120
   climbTolerance: 0.01
@@ -2209,6 +2228,7 @@ MonoBehaviour:
     m_Bits: 4294967295
   holdSpring: 400
   holdDamper: 80
+  maxLiftableMass: 5
   climbSpring: 1800
   climbDamper: 120
   climbTolerance: 0.01

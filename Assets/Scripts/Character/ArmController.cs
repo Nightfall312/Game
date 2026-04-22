@@ -55,6 +55,11 @@ public class ArmController : MonoBehaviour
     /// <summary>True after the first ComputeHandTarget() call — confirms target is not world-zero default.</summary>
     public bool      HasValidTarget  => _hasValidTarget;
 
+    /// <summary>The upper arm joint Transform — used by NetworkGrabSync to sample/apply bone rotations.</summary>
+    public Transform UpperArmTransform => upperArmJoint != null ? upperArmJoint.transform : null;
+    /// <summary>The forearm joint Transform — used by NetworkGrabSync to sample/apply bone rotations.</summary>
+    public Transform ForearmTransform  => forearmJoint  != null ? forearmJoint.transform  : null;
+
     /// <summary>
     /// Called once after spawning.
     /// yawOffsetDeg and pitchOffsetDeg are camera-relative offsets (e.g. -20 for left arm, +20 for right arm).

@@ -44,7 +44,7 @@ public class PauseMenuManager : MonoBehaviour
         IsPaused = _isPaused;
 
         pausePanel.SetActive(_isPaused);
-        Time.timeScale = _isPaused ? 0f : 1f;
+       
 
         Cursor.lockState = _isPaused ? CursorLockMode.None : CursorLockMode.Locked;
         Cursor.visible = _isPaused;

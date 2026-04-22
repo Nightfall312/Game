@@ -1,20 +1,22 @@
 using Fusion;
+using Fusion.Photon.Realtime;
 using Fusion.Sockets;
 using System;
-using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using UnityEngine;
 using UnityEngine.SceneManagement;
-
 
 public class NetworkRunnerHandler : MonoBehaviour
 {
     [SerializeField] NetworkRunner networkRunnerPrefab;
 
     NetworkRunner networkRunner;
-
     public NetworkRunner NetworkRunner => networkRunner;
+
+    const string LobbyName = "OurLobbyID";
+    const string FixedRegion = "asia";
+    const string FixedAppVersion = "1.0";
 
     void Awake()
     {
@@ -23,6 +25,9 @@ public class NetworkRunnerHandler : MonoBehaviour
 
     void Start()
     {
+#if UNITY_EDITOR
+        // Optional fallback only for direct testing in editor.
+        // Remove this too if you want absolutely no auto session.
         if (networkRunner == null)
         {
             networkRunner = Instantiate(networkRunnerPrefab);
@@ -37,23 +42,18 @@ public class NetworkRunnerHandler : MonoBehaviour
                 null
             );
 
-            Utils.DebugLog("NetworkRunnerHandler: started fallback session for direct scene testing.");
+            Utils.DebugLog("NetworkRunnerHandler: started fallback session for editor testing.");
         }
-
-        // If a runner already exists, do nothing.
+#endif
     }
 
     INetworkSceneManager GetSceneManager(NetworkRunner runner)
     {
-        INetworkSceneManager sceneManager = runner
-            .GetComponents(typeof(MonoBehaviour))
-            .OfType<INetworkSceneManager>()
-            .FirstOrDefault();
+        INetworkSceneManager sceneManager =
+            runner.GetComponents<MonoBehaviour>().OfType<INetworkSceneManager>().FirstOrDefault();
 
         if (sceneManager == null)
-        {
             sceneManager = runner.gameObject.AddComponent<NetworkSceneManagerDefault>();
-        }
 
         return sceneManager;
     }
@@ -64,11 +64,13 @@ public class NetworkRunnerHandler : MonoBehaviour
         string sessionName,
         NetAddress address,
         SceneRef scene,
-        Action<NetworkRunner> initialized)
+        Action initialized)
     {
         INetworkSceneManager sceneManager = GetSceneManager(runner);
 
         runner.ProvideInput = true;
+
+        FusionAppSettings customSettings = BuildCustomAppSettings();
 
         return runner.StartGame(new StartGameArgs
         {
@@ -76,8 +78,20 @@ public class NetworkRunnerHandler : MonoBehaviour
             Address = address,
             Scene = scene,
             SessionName = sessionName,
-            CustomLobbyName = "OurLobbyID",
+            CustomLobbyName = LobbyName,
             SceneManager = sceneManager,
+            CustomPhotonAppSettings = customSettings
         });
+    }
+
+    FusionAppSettings BuildCustomAppSettings()
+    {
+        FusionAppSettings appSettings = PhotonAppSettings.Global.AppSettings.GetCopy();
+
+        appSettings.UseNameServer = true;
+        appSettings.AppVersion = FixedAppVersion;
+        appSettings.FixedRegion = FixedRegion;
+
+        return appSettings;
     }
 }

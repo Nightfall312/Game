@@ -1,12 +1,11 @@
 using System.Linq;
 using System.Threading.Tasks;
 using Fusion;
-using Fusion.Sockets;
+using Fusion.Photon.Realtime;
 using TMPro;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 using UnityEngine.UI;
-
 
 public class MainMenuUIManager : MonoBehaviour
 {
@@ -47,11 +46,14 @@ public class MainMenuUIManager : MonoBehaviour
     [SerializeField] Button cancelNewGameButton;
 
     const string DefaultRoom = "TestRoom";
+    const string LobbyName = "OurLobbyID";
+    const string FixedRegion = "asia";
+    const string FixedAppVersion = "1.0";
+
     int _selectedSlot = -1;
 
     void Start()
     {
- 
         newGameButton.onClick.AddListener(OnNewGameClicked);
         joinGameButton.onClick.AddListener(OnJoinGameClicked);
         quitButton.onClick.AddListener(OnQuitClicked);
@@ -59,43 +61,31 @@ public class MainMenuUIManager : MonoBehaviour
         cancelJoinButton.onClick.AddListener(OnCancelJoinClicked);
 
         if (loadGameButton != null)
-        {
             loadGameButton.onClick.AddListener(OnLoadGameClicked);
-        }
 
         if (closeLoadButton != null)
-        {
             closeLoadButton.onClick.AddListener(OnCloseLoadClicked);
-        }
 
         if (slotButtons != null)
         {
             for (int i = 0; i < slotButtons.Length; i++)
             {
                 int slot = i;
-
                 if (slotButtons[i] != null)
-                {
                     slotButtons[i].onClick.AddListener(() => OnSlotClicked(slot));
-                }
             }
         }
 
         if (createButton != null)
-        {
             createButton.onClick.AddListener(OnCreateClicked);
-        }
 
         if (cancelNewGameButton != null)
-        {
             cancelNewGameButton.onClick.AddListener(OnCancelNewGameClicked);
-        }
 
         ShowMainPanel();
         SetStatus(string.Empty);
     }
 
-    // Main panel.
     void OnNewGameClicked()
     {
         _selectedSlot = -1;
@@ -131,9 +121,7 @@ public class MainMenuUIManager : MonoBehaviour
         mainPanel.SetActive(false);
 
         if (loadPanel != null)
-        {
             loadPanel.SetActive(true);
-        }
     }
 
     void OnJoinGameClicked()
@@ -152,25 +140,19 @@ public class MainMenuUIManager : MonoBehaviour
 #endif
     }
 
-    // Load panel.
     void RefreshSlotLabels()
     {
         if (slotButtons == null)
-        {
             return;
-        }
 
         for (int i = 0; i < slotButtons.Length; i++)
         {
             SaveData data = SaveManager.Load(i);
 
             if (slotLabels != null && i < slotLabels.Length && slotLabels[i] != null)
-            {
                 slotLabels[i].text = data.GetSummary();
-            }
         }
     }
-
 
     void OnSlotClicked(int slot)
     {
@@ -180,9 +162,11 @@ public class MainMenuUIManager : MonoBehaviour
         _ = StartSession(GameMode.Host, DefaultRoom);
     }
 
-    void OnCloseLoadClicked() => ShowMainPanel();
+    void OnCloseLoadClicked()
+    {
+        ShowMainPanel();
+    }
 
-    // Join panel.
     void OnConfirmJoinClicked()
     {
         string room = roomCodeInput.text.Trim();
@@ -198,44 +182,34 @@ public class MainMenuUIManager : MonoBehaviour
         _ = StartSession(GameMode.Client, room);
     }
 
-    void OnCancelJoinClicked()
-    {
-        ShowMainPanel();
-        SetStatus(string.Empty);
-    }
-
-    // Network.
     async Task StartSession(GameMode mode, string roomName)
     {
-        // Remove any old runner first.
         NetworkRunner existing = FindFirstObjectByType<NetworkRunner>();
         if (existing != null)
-        {
             Destroy(existing.gameObject);
-        }
 
         NetworkRunner runner = Instantiate(networkRunnerPrefab);
         runner.name = "Network Runner";
-
-        INetworkSceneManager sceneManager = runner
-            .GetComponents<MonoBehaviour>()
-            .OfType<INetworkSceneManager>()
-            .FirstOrDefault()
-            ?? runner.gameObject.AddComponent<NetworkSceneManagerDefault>();
-
         runner.ProvideInput = true;
+
+        INetworkSceneManager sceneManager =
+            runner.GetComponents<MonoBehaviour>().OfType<INetworkSceneManager>().FirstOrDefault()
+            ?? runner.gameObject.AddComponent<NetworkSceneManagerDefault>();
 
         int sceneIndex = SceneUtility.GetBuildIndexByScenePath(
             $"Assets/Scenes/{gameSceneName}.unity"
         );
 
+        FusionAppSettings customSettings = BuildCustomAppSettings();
+
         StartGameResult result = await runner.StartGame(new StartGameArgs
         {
             GameMode = mode,
             SessionName = roomName,
-            CustomLobbyName = "OurLobbyID",
+            CustomLobbyName = LobbyName,
             Scene = SceneRef.FromIndex(sceneIndex),
             SceneManager = sceneManager,
+            CustomPhotonAppSettings = customSettings
         });
 
         if (result.Ok)
@@ -252,21 +226,27 @@ public class MainMenuUIManager : MonoBehaviour
         }
     }
 
-    // Helpers.
+    FusionAppSettings BuildCustomAppSettings()
+    {
+        FusionAppSettings appSettings = PhotonAppSettings.Global.AppSettings.GetCopy();
+
+        appSettings.UseNameServer = true;
+        appSettings.AppVersion = FixedAppVersion;
+        appSettings.FixedRegion = FixedRegion;
+
+        return appSettings;
+    }
+
     void ShowMainPanel()
     {
         mainPanel.SetActive(true);
         joinPanel.SetActive(false);
 
         if (loadPanel != null)
-        {
             loadPanel.SetActive(false);
-        }
 
         if (newGamePanel != null)
-        {
             newGamePanel.SetActive(false);
-        }
     }
 
     void SetButtonsInteractable(bool value)
@@ -276,16 +256,18 @@ public class MainMenuUIManager : MonoBehaviour
         confirmJoinButton.interactable = value;
 
         if (loadGameButton != null)
-        {
             loadGameButton.interactable = value;
-        }
     }
 
     void SetStatus(string message)
     {
         if (statusText != null)
-        {
             statusText.text = message;
-        }
+    }
+
+    void OnCancelJoinClicked()
+    {
+        ShowMainPanel();
+        SetStatus(string.Empty);
     }
 }
